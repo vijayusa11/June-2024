@@ -1,0 +1,61 @@
+To modify your method to handle the creation of a new Excel file if it doesn't exist, or adding a new sheet if the file already exists, you need to adjust the `CreateExcelForDailyPatientSiteFile` method. Here's how you can do that:
+
+1. **Check if the file exists:**
+   - If it does, open the existing file and add a new sheet.
+   - If it doesn't, create a new file and add the sheet.
+
+2. **Refactor `CreateExcelForDailyPatientSiteFile` method to handle both scenarios.**
+
+Here is the modified version of your `CreateExcelForDailyPatientSiteFile` method:
+
+```csharp
+public string CreateExcelForDailyPatientSiteFile(FileInfo aAPCSRFile, string sheetName)
+{
+    string outputFilePath = string.Empty;
+    try
+    {
+        string sourceFile = aAPCSRFile?.ToString() ?? string.Empty;
+        outputFilePath = Path.Combine(exportDirectory, $"{sheetName}.xlsx");
+
+        using (var workbook = new XSSFWorkbook())
+        {
+            if (File.Exists(outputFilePath))
+            {
+                // Open existing workbook
+                using (FileStream fs = new FileStream(outputFilePath, FileMode.Open, FileAccess.Read))
+                {
+                    workbook = new XSSFWorkbook(fs);
+                }
+            }
+
+            ISheet sheet = workbook.GetSheet(sheetName) ?? workbook.CreateSheet(sheetName); // Create or get sheet
+
+            if (!string.IsNullOrEmpty(sourceFile))
+            {
+                LoadDailyPatientSiteCsvData(sourceFile, sheet, workbook, sheetName); // Load data from CSV file into sheet
+            }
+
+            using (FileStream stream = new FileStream(outputFilePath, FileMode.Create, FileAccess.Write)) // Save the workbook to an XLSX file
+            {
+                workbook.Write(stream);
+            }
+
+            Console.WriteLine(sheetName + "...csv file copied to XLSX successfully...");
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+    return outputFilePath;
+}
+```
+
+In this code:
+- We check if the output file already exists.
+- If it exists, we open it and add or get the required sheet.
+- If it does not exist, we create a new workbook and add the sheet.
+- The rest of the logic remains the same for loading data and saving the workbook.
+
+This ensures that if the output file already exists, new data is appended to a new sheet within the same file, and if it doesn't, a new file is created.
