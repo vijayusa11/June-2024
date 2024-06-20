@@ -1,2 +1,65 @@
 Severity	Code	Description	Project	File	Line	Suppression State
 Error	CS1656	Cannot assign to 'workbook' because it is a 'using variable'	MedsolPhoneEntry	D:\Projects\MedsolPhoneEntry\MedsolPhoneEntry\WebScrapping.cs	224	Active
+
+.....
+
+
+To avoid the `CS1656` error ("Cannot assign to 'workbook' because it is a 'using variable'"), we need to adjust the logic to ensure that the `workbook` variable is not reassigned within the `using` block. Instead, we should create and handle the workbook outside of the `using` statement. Here is the corrected version of your method:
+
+```csharp
+public string CreateExcelForDailyPatientSiteFile(FileInfo aAPCSRFile, string sheetName)
+{
+    string outputFilePath = string.Empty;
+    XSSFWorkbook workbook = null;
+    try
+    {
+        string sourceFile = aAPCSRFile?.ToString() ?? string.Empty;
+        outputFilePath = Path.Combine(exportDirectory, $"{sheetName}.xlsx");
+
+        if (File.Exists(outputFilePath))
+        {
+            // Open existing workbook
+            using (FileStream fs = new FileStream(outputFilePath, FileMode.Open, FileAccess.Read))
+            {
+                workbook = new XSSFWorkbook(fs);
+            }
+        }
+        else
+        {
+            // Create new workbook
+            workbook = new XSSFWorkbook();
+        }
+
+        ISheet sheet = workbook.GetSheet(sheetName) ?? workbook.CreateSheet(sheetName); // Create or get sheet
+
+        if (!string.IsNullOrEmpty(sourceFile))
+        {
+            LoadDailyPatientSiteCsvData(sourceFile, sheet, workbook, sheetName); // Load data from CSV file into sheet
+        }
+
+        using (FileStream stream = new FileStream(outputFilePath, FileMode.Create, FileAccess.Write)) // Save the workbook to an XLSX file
+        {
+            workbook.Write(stream);
+        }
+
+        Console.WriteLine(sheetName + "...csv file copied to XLSX successfully...");
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+    finally
+    {
+        workbook?.Close();
+    }
+    return outputFilePath;
+}
+```
+
+In this version:
+1. The `workbook` is initialized outside of the `using` statement.
+2. The logic to open or create the workbook is handled before the `using` statement that writes to the file.
+3. The `finally` block ensures that the workbook is properly closed.
+
+This approach ensures that the workbook object is managed correctly and avoids the `CS1656` error.
