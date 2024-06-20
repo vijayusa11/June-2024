@@ -1,0 +1,119 @@
+Certainly! Let's integrate the SharePoint file upload functionality into your `WebScraping` class, including handling the `CS0246` error and implementing the `ExampleMethod` to upload a file to SharePoint.
+
+### Step-by-Step Solution
+
+#### 1. Add Required `using` Directives and Assembly Reference
+
+Ensure you have the necessary `using` directives and assembly reference for SharePoint Client Object Model in your `WebScraping.cs` file:
+
+```csharp
+using Microsoft.SharePoint.Client;
+using System;
+using System.Configuration;
+using System.IO;
+using System.Security;
+```
+
+Make sure the `Microsoft.SharePoint.Client.Runtime` assembly is referenced in your project. If it's not already referenced, you can add it via NuGet:
+
+```bash
+Install-Package Microsoft.SharePointOnline.CSOM
+```
+
+#### 2. Implement ExampleMethod for SharePoint File Upload
+
+Modify your `ExampleMethod` to handle file upload to SharePoint. Here's how you can structure it:
+
+```csharp
+public void ExampleMethod(string filePath)
+{
+    try
+    {
+        string siteUrl = "https://yoursite.sharepoint.com/sites/yoursite"; // Replace with your SharePoint site URL
+        string username = "yourusername@yoursite.onmicrosoft.com"; // Replace with your SharePoint username
+        string password = "yourpassword";
+
+        SecureString securePassword = new SecureString();
+        foreach (char c in password.ToCharArray())
+            securePassword.AppendChar(c);
+
+        using (ClientContext context = new ClientContext(siteUrl))
+        {
+            context.Credentials = new SharePointOnlineCredentials(username, securePassword);
+
+            // Provide the relative path within the SharePoint site where you want to upload the file
+            string targetFolderUrl = "/sites/yoursite/Shared Documents"; 
+
+            // File details
+            string fileName = Path.GetFileName(filePath);
+            string targetFileUrl = targetFolderUrl + "/" + fileName;
+
+            // Read file content
+            byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+
+            // Upload file
+            FileCreationInformation newFile = new FileCreationInformation
+            {
+                Content = fileContent,
+                Url = targetFileUrl,
+                Overwrite = true
+            };
+
+            List docs = context.Web.Lists.GetByTitle("Documents");
+            Microsoft.SharePoint.Client.File uploadFile = docs.RootFolder.Files.Add(newFile);
+            context.Load(uploadFile);
+            context.ExecuteQuery();
+
+            Console.WriteLine("File uploaded successfully to SharePoint.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+        // Log the error or handle it as per your application's error handling strategy
+    }
+}
+```
+
+#### Explanation:
+
+- **ClientContext and Credentials:** Establishes a connection to the SharePoint site using `ClientContext` and sets credentials using `SharePointOnlineCredentials`.
+
+- **File Upload:** Uses `FileCreationInformation` to specify file details (content, URL, overwrite behavior) and uploads the file to SharePoint document library ("Documents" in this case).
+
+- **Error Handling:** Catches exceptions during the upload process and logs them or handles them as required by your application.
+
+#### Usage:
+
+Call `ExampleMethod` from your `StartPhoneEntryProcess` or any other appropriate method in your application, passing the `filePath` of the file you want to upload.
+
+```csharp
+public void StartPhoneEntryProcess(string[] args)
+{
+    // Your existing code...
+    
+    try
+    {
+        // Call ExampleMethod with the path to the file you want to upload
+        string filePathToUpload = "path_to_your_file"; // Replace with actual file path
+        ExampleMethod(filePathToUpload);
+
+        // Additional logic after file upload if needed
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error in StartPhoneEntryProcess: {ex.Message}");
+        LogToErrorFile(ex.Message);
+    }
+}
+```
+
+#### Notes:
+
+- **Credentials Security:** Handle passwords securely, possibly using configuration settings or secure storage mechanisms.
+  
+- **SharePoint Site URL:** Replace `"https://yoursite.sharepoint.com/sites/yoursite"` with your actual SharePoint site URL.
+  
+- **Document Library:** Ensure the document library ("Documents") exists and is accessible with the provided credentials.
+
+By following these steps, you should be able to integrate SharePoint file upload functionality into your `WebScraping` class and handle the `CS0246` error effectively. Adjust paths, URLs, and error handling as per your specific SharePoint environment and application requirements.
