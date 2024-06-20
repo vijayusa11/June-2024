@@ -1,0 +1,72 @@
+To upload an Excel file to a SharePoint folder programmatically, you can use the `Microsoft.SharePoint.Client` library. Below is an example of how to do this in C#:
+
+1. **Install the necessary NuGet packages:**
+   - `Microsoft.SharePointOnline.CSOM`
+
+2. **Use the following code to upload the file:**
+
+```csharp
+using System;
+using System.IO;
+using Microsoft.SharePoint.Client;
+
+public class SharePointUploader
+{
+    public void UploadFileToSharePoint(string siteUrl, string folderUrl, string filePath, string username, string password)
+    {
+        var securePassword = new System.Security.SecureString();
+        foreach (char c in password) securePassword.AppendChar(c);
+
+        var credentials = new SharePointOnlineCredentials(username, securePassword);
+
+        using (var context = new ClientContext(siteUrl))
+        {
+            context.Credentials = credentials;
+
+            Web web = context.Web;
+            context.Load(web, w => w.ServerRelativeUrl);
+            context.ExecuteQuery();
+
+            string serverRelativeUrl = Path.Combine(web.ServerRelativeUrl, folderUrl, Path.GetFileName(filePath)).Replace("\\", "/");
+
+            using (var fs = new FileStream(filePath, FileMode.Open))
+            {
+                FileCreationInformation newFile = new FileCreationInformation
+                {
+                    ContentStream = fs,
+                    Url = serverRelativeUrl,
+                    Overwrite = true
+                };
+
+                List documentsList = web.Lists.GetByTitle("Documents");
+                Microsoft.SharePoint.Client.File uploadFile = documentsList.RootFolder.Files.Add(newFile);
+
+                context.Load(uploadFile);
+                context.ExecuteQuery();
+            }
+
+            Console.WriteLine("File uploaded to SharePoint successfully.");
+        }
+    }
+}
+
+// Usage
+class Program
+{
+    static void Main()
+    {
+        var uploader = new SharePointUploader();
+        uploader.UploadFileToSharePoint("https://yoursharepointsite.sharepoint.com", "Shared Documents/YourFolder", "path/to/your/file.xlsx", "yourusername@domain.com", "yourpassword");
+    }
+}
+```
+
+### Key Points:
+1. **Credentials**: The `SharePointOnlineCredentials` object is used for authentication.
+2. **File Creation Information**: A `FileCreationInformation` object is created to hold the file stream and metadata.
+3. **List and Folder**: The file is added to the specified SharePoint list and folder.
+
+Make sure to replace placeholders like `siteUrl`, `folderUrl`, `filePath`, `username`, and `password` with your actual SharePoint site details and credentials.
+
+### Security Note:
+Avoid hardcoding credentials in your code. Use secure methods to handle sensitive information.
