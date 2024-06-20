@@ -1,0 +1,75 @@
+If you are still encountering the `CS0246` error indicating that `SharePointOnlineCredentials` could not be found, it typically means that the necessary assembly or namespace for SharePoint Online credentials hasn't been properly referenced or imported into your project. Here's how you can resolve this issue step-by-step:
+
+### 1. Ensure SharePoint Client Components are Installed
+
+Make sure that the SharePoint Online Client Components SDK is installed on your development machine. You can download it from the Microsoft Download Center [here](https://www.microsoft.com/en-us/download/details.aspx?id=42038).
+
+### 2. Add Reference to `Microsoft.SharePoint.Client.Runtime.dll`
+
+Ensure that your project references the `Microsoft.SharePoint.Client.Runtime.dll` assembly. If it's not already referenced, you can add it manually or through NuGet Package Manager:
+
+#### Using NuGet Package Manager:
+
+Open the Package Manager Console in Visual Studio (`Tools` -> `NuGet Package Manager` -> `Package Manager Console`) and run the following command:
+
+```bash
+Install-Package Microsoft.SharePointOnline.CSOM
+```
+
+This will install the necessary SharePoint Online Client Components SDK, which includes the `Microsoft.SharePoint.Client` assembly where `SharePointOnlineCredentials` is defined.
+
+### 3. Verify `using` Directives
+
+Ensure that your `WebScrapping.cs` file has the correct `using` directives at the top:
+
+```csharp
+using Microsoft.SharePoint.Client;
+using System.Security;
+```
+
+These directives are necessary to access `SharePointOnlineCredentials` and `ClientContext`.
+
+### 4. Update Credentials Assignment
+
+Modify your code to assign credentials using `SharePointOnlineCredentials`:
+
+```csharp
+string siteUrl = "https://yoursite.sharepoint.com/sites/yoursite"; // Replace with your SharePoint site URL
+string username = "yourusername@yoursite.onmicrosoft.com"; // Replace with your SharePoint username
+string password = "yourpassword";
+
+SecureString securePassword = new SecureString();
+foreach (char c in password.ToCharArray())
+    securePassword.AppendChar(c);
+
+using (ClientContext context = new ClientContext(siteUrl))
+{
+    context.Credentials = new SharePointOnlineCredentials(username, securePassword);
+
+    // Your SharePoint operations here
+}
+```
+
+### 5. Clean and Rebuild Solution
+
+After making sure all necessary references and `using` directives are in place, clean your solution (`Build` -> `Clean Solution`) and then rebuild it (`Build` -> `Rebuild Solution`) to ensure that all changes are applied correctly.
+
+### 6. Handling Exceptions
+
+Wrap your SharePoint operations in a try-catch block to handle exceptions gracefully:
+
+```csharp
+try
+{
+    // SharePoint operations with ClientContext here
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error: {ex.Message}");
+    // Handle or log the exception as needed
+}
+```
+
+### Conclusion
+
+By following these steps, you should be able to resolve the `CS0246` error related to `SharePointOnlineCredentials` and successfully authenticate and interact with SharePoint Online in your `WebScrapping` class. Ensure that your SharePoint credentials are correctly set up and secured according to best practices.
