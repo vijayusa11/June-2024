@@ -1,0 +1,81 @@
+These errors indicate that your project is missing references to the required assemblies and namespaces needed for SharePoint development. To resolve these issues, follow these steps:
+
+### Step 1: Add the SharePoint Client DLLs
+You need to reference the necessary SharePoint Client DLLs in your project. You can get these DLLs by installing the SharePoint Client Components SDK or by using NuGet packages.
+
+#### Using NuGet Packages
+1. **Open NuGet Package Manager**:
+   - Right-click on your project in Solution Explorer.
+   - Select "Manage NuGet Packages".
+
+2. **Search for and Install Packages**:
+   - Search for `Microsoft.SharePointOnline.CSOM`.
+   - Install the package.
+
+This will add the required assemblies to your project.
+
+### Step 2: Add Using Directives
+Ensure you have the correct using directives at the top of your `WebScrapping.cs` file:
+
+```csharp
+using Microsoft.SharePoint.Client;
+```
+
+### Step 3: Correct the Code
+Make sure your code references the types from the correct namespaces. Here’s a simplified example:
+
+```csharp
+using System;
+using Microsoft.SharePoint.Client;
+using System.Security;
+
+public class WebScrapping
+{
+    public void ExampleMethod()
+    {
+        string siteUrl = "https://yoursite.sharepoint.com";
+        string username = "yourusername";
+        string password = "yourpassword";
+
+        SecureString securePassword = new SecureString();
+        foreach (char c in password.ToCharArray())
+            securePassword.AppendChar(c);
+
+        using (ClientContext context = new ClientContext(siteUrl))
+        {
+            context.Credentials = new SharePointOnlineCredentials(username, securePassword);
+
+            Web web = context.Web;
+            context.Load(web);
+            context.ExecuteQuery();
+
+            Console.WriteLine("Web title: " + web.Title);
+
+            FileCreationInformation newFile = new FileCreationInformation
+            {
+                Content = System.IO.File.ReadAllBytes("path/to/your/file.txt"),
+                Url = "Shared Documents/file.txt",
+                Overwrite = true
+            };
+
+            List docs = web.Lists.GetByTitle("Documents");
+            Microsoft.SharePoint.Client.File uploadFile = docs.RootFolder.Files.Add(newFile);
+            context.Load(uploadFile);
+            context.ExecuteQuery();
+        }
+    }
+}
+```
+
+### Step 4: Resolve Specific Errors
+1. **CS0246 Errors**: These are typically resolved by adding the correct using directives and ensuring the necessary references are included.
+2. **CS0234 Error**: This indicates that the `Microsoft.SharePoint.Client` namespace is not recognized. Installing the NuGet package and adding the using directive should resolve this.
+3. **CS0305 Error**: This error indicates that you are not specifying the type argument for the `List<T>`. Ensure that you specify the correct type, like `List<FileCreationInformation>`.
+
+### Final Checklist
+- Make sure all necessary NuGet packages are installed.
+- Add all required using directives.
+- Ensure your project targets a compatible .NET Framework version.
+- Clean and rebuild your solution after making these changes.
+
+Following these steps should resolve the errors and allow your project to compile successfully.
