@@ -1,0 +1,88 @@
+To upload a file to SharePoint from your `WebScraping` class, you need to use the SharePoint Client Object Model. Here’s how you can modify your existing code to include file upload functionality to SharePoint:
+
+### Step-by-Step Guide to Upload File to SharePoint
+
+1. **Add SharePoint Client Library Reference:**
+   Ensure you have the necessary SharePoint Client Object Model library referenced in your project. If not, install it via NuGet Package Manager:
+   ```
+   Install-Package Microsoft.SharePointOnline.CSOM
+   ```
+
+2. **Update Namespaces:**
+   Include the necessary namespaces at the top of your `WebScraping` class:
+   ```csharp
+   using Microsoft.SharePoint.Client;
+   using System.Security;
+   ```
+
+3. **Modify `ExampleMethod` for SharePoint Upload:**
+   Update your `ExampleMethod` (or any other method where you intend to perform SharePoint upload) to include file upload logic. Here’s an updated example based on your previous methods:
+
+   ```csharp
+   public void ExampleMethod(string filePath)
+   {
+       string siteUrl = "https://yoursite.sharepoint.com/sites/yoursite"; // Replace with your SharePoint site URL
+       string username = "yourusername@yoursite.onmicrosoft.com"; // Replace with your SharePoint username
+       string password = "yourpassword";
+
+       SecureString securePassword = new SecureString();
+       foreach (char c in password.ToCharArray())
+           securePassword.AppendChar(c);
+
+       using (ClientContext context = new ClientContext(siteUrl))
+       {
+           context.Credentials = new SharePointOnlineCredentials(username, securePassword);
+
+           Web web = context.Web;
+           context.Load(web);
+           context.ExecuteQuery();
+
+           Console.WriteLine("Web title: " + web.Title);
+
+           // Provide the relative path within the SharePoint site where you want to upload the file
+           string targetFolderUrl = "/sites/yoursite/Shared Documents"; 
+
+           // File details
+           string fileName = Path.GetFileName(filePath);
+           string targetFileUrl = targetFolderUrl + "/" + fileName;
+
+           // Read file content
+           byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+
+           // Upload file
+           FileCreationInformation newFile = new FileCreationInformation
+           {
+               Content = fileContent,
+               Url = targetFileUrl,
+               Overwrite = true
+           };
+
+           List docs = web.Lists.GetByTitle("Documents");
+           Microsoft.SharePoint.Client.File uploadFile = docs.RootFolder.Files.Add(newFile);
+           context.Load(uploadFile);
+           context.ExecuteQuery();
+
+           Console.WriteLine("File uploaded successfully to SharePoint.");
+       }
+   }
+   ```
+
+### Explanation:
+
+- **ClientContext:** Establishes a connection to the SharePoint site using your credentials (`username` and `securePassword`).
+- **FileCreationInformation:** Specifies details of the file to be uploaded, including content, URL (relative to SharePoint site), and overwrite behavior (`Overwrite = true`).
+- **Upload Process:** Uses `web.Lists.GetByTitle` to get the document library (`Documents` in this case), then adds the file using `docs.RootFolder.Files.Add(newFile)`.
+- **ExecuteQuery:** Commits the file upload operation to SharePoint.
+
+### Usage:
+
+You can call this `ExampleMethod` from your `StartPhoneEntryProcess` method or any other appropriate place in your application where you have the `filePath` of the file you want to upload.
+
+### Notes:
+
+- Make sure to replace `"https://yoursite.sharepoint.com/sites/yoursite"` with your actual SharePoint site URL.
+- Replace `"yourusername@yoursite.onmicrosoft.com"` and `"yourpassword"` with your SharePoint credentials.
+- Ensure the SharePoint site URL and document library ("Documents") exist and are accessible with the provided credentials.
+- Handle exceptions and error scenarios appropriately in your application for robustness.
+
+By following these steps, you should be able to integrate file upload functionality to SharePoint within your `WebScraping` class effectively. Adjust paths, URLs, and error handling as per your specific requirements and SharePoint environment setup.
