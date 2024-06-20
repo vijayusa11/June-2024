@@ -1,0 +1,111 @@
+To integrate the SharePoint file upload into your existing method, you can modify your `ProcessFile` or `CreateExcelForDailyPatientSiteFile` method to call the `UploadFileToSharePoint` method after creating or appending the Excel file.
+
+Here’s how you can do it:
+
+1. **Define the SharePoint upload method:**
+
+```csharp
+public class SharePointUploader
+{
+    public void UploadFileToSharePoint(string siteUrl, string folderUrl, string filePath, string username, string password)
+    {
+        var securePassword = new System.Security.SecureString();
+        foreach (char c in password) securePassword.AppendChar(c);
+
+        var credentials = new SharePointOnlineCredentials(username, securePassword);
+
+        using (var context = new ClientContext(siteUrl))
+        {
+            context.Credentials = credentials;
+
+            Web web = context.Web;
+            context.Load(web, w => w.ServerRelativeUrl);
+            context.ExecuteQuery();
+
+            string serverRelativeUrl = Path.Combine(web.ServerRelativeUrl, folderUrl, Path.GetFileName(filePath)).Replace("\\", "/");
+
+            using (var fs = new FileStream(filePath, FileMode.Open))
+            {
+                FileCreationInformation newFile = new FileCreationInformation
+                {
+                    ContentStream = fs,
+                    Url = serverRelativeUrl,
+                    Overwrite = true
+                };
+
+                List documentsList = web.Lists.GetByTitle("Documents");
+                Microsoft.SharePoint.Client.File uploadFile = documentsList.RootFolder.Files.Add(newFile);
+
+                context.Load(uploadFile);
+                context.ExecuteQuery();
+            }
+
+            Console.WriteLine("File uploaded to SharePoint successfully.");
+        }
+    }
+}
+```
+
+2. **Modify your existing method to call the SharePoint upload method:**
+
+```csharp
+public string CreateExcelForDailyPatientSiteFile(FileInfo aAPCSRFile, string sheetName)
+{
+    string outputFilePath = string.Empty;
+    XSSFWorkbook workbook = null;
+    FileStream fs = null;
+    try
+    {
+        string sourceFile = aAPCSRFile?.ToString() ?? string.Empty;
+        outputFilePath = Path.Combine(exportDirectory, $"{sheetName}.xlsx");
+
+        if (File.Exists(outputFilePath))
+        {
+            // Open existing workbook
+            fs = new FileStream(outputFilePath, FileMode.Open, FileAccess.Read);
+            workbook = new XSSFWorkbook(fs);
+            fs.Close();
+        }
+        else
+        {
+            // Create new workbook
+            workbook = new XSSFWorkbook();
+        }
+
+        ISheet sheet = workbook.GetSheet(sheetName) ?? workbook.CreateSheet(sheetName); // Create or get sheet
+
+        if (!string.IsNullOrEmpty(sourceFile))
+        {
+            AppendDailyPatientSiteCsvData(sourceFile, sheet, workbook, sheetName); // Append data from CSV file into sheet
+        }
+
+        using (fs = new FileStream(outputFilePath, FileMode.Create, FileAccess.Write)) // Save the workbook to an XLSX file
+        {
+            workbook.Write(fs);
+        }
+
+        Console.WriteLine(sheetName + "...csv file copied to XLSX successfully...");
+
+        // Upload to SharePoint
+        var uploader = new SharePointUploader();
+        uploader.UploadFileToSharePoint("https://yoursharepointsite.sharepoint.com", "Shared Documents/YourFolder", outputFilePath, "yourusername@domain.com", "yourpassword");
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+    finally
+    {
+        workbook?.Close();
+        fs?.Close();
+    }
+    return outputFilePath;
+}
+```
+
+In this modified method:
+- After the Excel file is created or updated, the `UploadFileToSharePoint` method is called to upload the file to the specified SharePoint location.
+- Replace `"https://yoursharepointsite.sharepoint.com"`, `"Shared Documents/YourFolder"`, `"yourusername@domain.com"`, and `"yourpassword"` with your actual SharePoint details and credentials.
+
+By integrating the SharePoint upload into your existing workflow, you ensure that each time the Excel file is processed, it is also uploaded to the specified SharePoint folder.
