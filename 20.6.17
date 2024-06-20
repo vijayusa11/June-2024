@@ -1,0 +1,6 @@
+context.Credentials = new SharePointOnlineCredentials(username, securePassword);
+
+getting error - 
+
+Severity	Code	Description	Project	File	Line	Suppression State
+Error	CS0246	The type or namespace name 'SharePointOnlineCredentials' could not be found (are you missing a using directive or an assembly reference?)	MedsolPhoneEntry	D:\Projects\MedsolPhoneEntry\MedsolPhoneEntry\WebScrapping.cs	316	Active
