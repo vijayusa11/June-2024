@@ -1,0 +1,8 @@
+Severity	Code	Description	Project	File	Line	Suppression State
+Error	CS0104	'File' is an ambiguous reference between 'Microsoft.SharePoint.Client.File' and 'System.IO.File'	MedsolPhoneEntry	D:\Projects\MedsolPhoneEntry\MedsolPhoneEntry\WebScrapping.cs	217	Active
+Error	CS0104	'File' is an ambiguous reference between 'Microsoft.SharePoint.Client.File' and 'System.IO.File'	MedsolPhoneEntry	D:\Projects\MedsolPhoneEntry\MedsolPhoneEntry\WebScrapping.cs	320	Active
+Error	CS0104	'File' is an ambiguous reference between 'Microsoft.SharePoint.Client.File' and 'System.IO.File'	MedsolPhoneEntry	D:\Projects\MedsolPhoneEntry\MedsolPhoneEntry\WebScrapping.cs	540	Active
+Error	CS0104	'File' is an ambiguous reference between 'Microsoft.SharePoint.Client.File' and 'System.IO.File'	MedsolPhoneEntry	D:\Projects\MedsolPhoneEntry\MedsolPhoneEntry\WebScrapping.cs	540	Active
+Error	CS0104	'File' is an ambiguous reference between 'Microsoft.SharePoint.Client.File' and 'System.IO.File'	MedsolPhoneEntry	D:\Projects\MedsolPhoneEntry\MedsolPhoneEntry\WebScrapping.cs	540	Active
+Severity	Code	Description	Project	File	Line	Suppression State
+Error	CS0246	The type or namespace name 'SharePointOnlineCredentials' could not be found (are you missing a using directive or an assembly reference?)	MedsolPhoneEntry	D:\Projects\MedsolPhoneEntry\MedsolPhoneEntry\WebScrapping.cs	623	Active
