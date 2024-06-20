@@ -1,0 +1,145 @@
+Based on your `Main` method, it seems you are initializing and using an instance of `WebScraping` to start the phone entry process. Assuming `WebScraping` contains the methods `ExampleMethod`, `CreateExcelForDailyPatientSiteFile`, and `SharePointUploader`, you can call these methods within `StartPhoneEntryProcess`.
+
+Here's how you can integrate these methods into the `StartPhoneEntryProcess` method inside your `WebScraping` class:
+
+### Step 1: Modify the WebScraping Class
+
+Ensure your `WebScraping` class implements `IDisposable` if you are using it within a `using` statement. Then, integrate the method calls within `StartPhoneEntryProcess`.
+
+```csharp
+using System;
+using System.Configuration;
+using System.IO;
+using System.Net.Http;
+using Microsoft.SharePoint.Client;
+using System.Security;
+
+namespace MedsolPhoneEntry
+{
+    public class WebScraping : IDisposable
+    {
+        // Assuming other necessary fields and methods are defined here
+
+        public void StartPhoneEntryProcess(string[] args)
+        {
+            // Step 1: Create Excel file for daily patient site
+            CreateExcelForDailyPatientSiteFile();
+
+            // Path to the file you want to upload
+            string filePath = "path/to/your/excel/file.xlsx";
+
+            // Step 2: Upload the Excel file to SharePoint
+            SharePointUploader(filePath);
+
+            // Step 3: Perform additional SharePoint operations
+            ExampleMethod();
+        }
+
+        public void CreateExcelForDailyPatientSiteFile()
+        {
+            // Implement your logic to create an Excel file
+            Console.WriteLine("Excel file created.");
+        }
+
+        public void SharePointUploader(string filePath)
+        {
+            // Implement your logic to upload a file to SharePoint
+            Console.WriteLine("File uploaded to SharePoint.");
+        }
+
+        public void ExampleMethod()
+        {
+            string siteUrl = "https://yoursite.sharepoint.com";
+            string username = "yourusername";
+            string password = "yourpassword";
+
+            SecureString securePassword = new SecureString();
+            foreach (char c in password.ToCharArray())
+                securePassword.AppendChar(c);
+
+            using (ClientContext context = new ClientContext(siteUrl))
+            {
+                context.Credentials = new SharePointOnlineCredentials(username, securePassword);
+
+                Web web = context.Web;
+                context.Load(web);
+                context.ExecuteQuery();
+
+                Console.WriteLine("Web title: " + web.Title);
+
+                FileCreationInformation newFile = new FileCreationInformation
+                {
+                    Content = System.IO.File.ReadAllBytes("path/to/your/file.txt"),
+                    Url = "Shared Documents/file.txt",
+                    Overwrite = true
+                };
+
+                List docs = web.Lists.GetByTitle("Documents");
+                Microsoft.SharePoint.Client.File uploadFile = docs.RootFolder.Files.Add(newFile);
+                context.Load(uploadFile);
+                context.ExecuteQuery();
+            }
+        }
+
+        public void Dispose()
+        {
+            // Dispose resources if necessary
+        }
+    }
+}
+```
+
+### Step 2: Update the Main Method in Program Class
+
+Here is the `Main` method as provided, which now utilizes the `StartPhoneEntryProcess` method:
+
+```csharp
+using System;
+using System.Configuration;
+using System.Net.Http;
+
+namespace MedsolPhoneEntry
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            using (WebScraping ws = new WebScraping())
+            {
+                try
+                {
+                    ws.StartPhoneEntryProcess(args);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"An error occurred: {ex.Message}");
+                }
+            }
+        }
+    }
+}
+```
+
+### Step 3: Ensure Correct Namespaces and Assembly References
+
+Make sure your project references the necessary assemblies and includes the correct namespaces at the top of your files:
+
+```csharp
+using System;
+using System.Configuration;
+using System.IO;
+using System.Net.Http;
+using Microsoft.SharePoint.Client;
+using System.Security;
+```
+
+Also, ensure the `Microsoft.SharePointOnline.CSOM` NuGet package is installed.
+
+### Summary
+
+- **Update the `WebScraping` class** to include the `StartPhoneEntryProcess` method that calls `CreateExcelForDailyPatientSiteFile`, `SharePointUploader`, and `ExampleMethod`.
+- **Ensure `WebScraping` implements `IDisposable`** if you use it within a `using` statement.
+- **Update the `Main` method** to call `StartPhoneEntryProcess` and handle exceptions.
+- **Check namespaces and assembly references** to resolve any ambiguous references or missing type issues.
+
+Following these steps should allow your application to compile and run successfully, performing the specified operations in sequence.
