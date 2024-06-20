@@ -1,0 +1,131 @@
+If you are encountering the error "The type or namespace name 'SharePointOnlineCredentials' could not be found," it usually means that the necessary assembly or namespace for `SharePointOnlineCredentials` has not been properly referenced or imported into your project. Here’s a detailed guide to resolve this issue:
+
+### Step 1: Install the SharePoint Online CSOM Library
+
+Ensure that you have the SharePoint Online Client Components SDK installed. The easiest way to include the necessary libraries in your project is through NuGet.
+
+1. **Using NuGet Package Manager Console:**
+   Open the Package Manager Console in Visual Studio (`Tools` -> `NuGet Package Manager` -> `Package Manager Console`) and run the following command:
+   ```powershell
+   Install-Package Microsoft.SharePointOnline.CSOM
+   ```
+
+2. **Using NuGet Package Manager GUI:**
+   - Right-click on your project in Solution Explorer and select `Manage NuGet Packages`.
+   - Search for `Microsoft.SharePointOnline.CSOM`.
+   - Click `Install`.
+
+### Step 2: Add Required `using` Directives
+
+Ensure that you have the necessary `using` directives at the top of your `WebScraping.cs` file:
+
+```csharp
+using Microsoft.SharePoint.Client;
+using System.Security;
+```
+
+### Step 3: Update Your Code
+
+Here’s how you can update your code to use `SharePointOnlineCredentials`:
+
+1. **Define Your Variables and SecureString:**
+
+```csharp
+string siteUrl = "https://yoursite.sharepoint.com/sites/yoursite"; // Replace with your SharePoint site URL
+string username = "yourusername@yoursite.onmicrosoft.com"; // Replace with your SharePoint username
+string password = "yourpassword";
+
+SecureString securePassword = new SecureString();
+foreach (char c in password.ToCharArray())
+    securePassword.AppendChar(c);
+```
+
+2. **Create and Use `ClientContext`:**
+
+```csharp
+using (ClientContext context = new ClientContext(siteUrl))
+{
+    context.Credentials = new SharePointOnlineCredentials(username, securePassword);
+
+    // Your SharePoint operations here
+}
+```
+
+### Example Method with SharePoint Upload
+
+Below is a complete example method that creates a file and uploads it to SharePoint using `SharePointOnlineCredentials`:
+
+```csharp
+using Microsoft.SharePoint.Client;
+using System;
+using System.IO;
+using System.Security;
+
+namespace MedsolPhoneEntry
+{
+    public class WebScraping : IDisposable
+    {
+        public void UploadFileToSharePoint(string siteUrl, string username, string password, string filePath, string libraryName)
+        {
+            SecureString securePassword = new SecureString();
+            foreach (char c in password.ToCharArray())
+                securePassword.AppendChar(c);
+
+            using (ClientContext context = new ClientContext(siteUrl))
+            {
+                context.Credentials = new SharePointOnlineCredentials(username, securePassword);
+
+                Web web = context.Web;
+                FileCreationInformation newFile = new FileCreationInformation
+                {
+                    Content = System.IO.File.ReadAllBytes(filePath),
+                    Url = Path.GetFileName(filePath),
+                    Overwrite = true
+                };
+
+                List docs = web.Lists.GetByTitle(libraryName);
+                Microsoft.SharePoint.Client.File uploadFile = docs.RootFolder.Files.Add(newFile);
+
+                context.Load(uploadFile);
+                context.ExecuteQuery();
+
+                Console.WriteLine("File uploaded to SharePoint successfully.");
+            }
+        }
+
+        public void Dispose()
+        {
+            GC.SuppressFinalize(this);
+        }
+
+        static void Main(string[] args)
+        {
+            using (WebScraping ws = new WebScraping())
+            {
+                try
+                {
+                    string siteUrl = "https://yoursite.sharepoint.com/sites/yoursite"; // Replace with your SharePoint site URL
+                    string username = "yourusername@yoursite.onmicrosoft.com"; // Replace with your SharePoint username
+                    string password = "yourpassword";
+                    string filePath = "path/to/your/file.txt"; // Replace with your file path
+                    string libraryName = "Documents"; // Replace with your SharePoint library name
+
+                    ws.UploadFileToSharePoint(siteUrl, username, password, filePath, libraryName);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Error: " + ex.Message);
+                }
+            }
+        }
+    }
+}
+```
+
+### Summary
+
+1. **Install the SharePoint Online CSOM library using NuGet.**
+2. **Add the necessary `using` directives.**
+3. **Write your method to use `SharePointOnlineCredentials` and perform SharePoint operations.**
+
+Following these steps should resolve the `CS0246` error and allow you to use `SharePointOnlineCredentials` in your project.
