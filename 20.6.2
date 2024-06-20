@@ -1,0 +1,76 @@
+here i want to check condition if there is no output file exist then create as its creating or if file already exists then add next excel sheet data into same output sheet (sheetName)
+
+
+private void ProcessFile(FileInfo file, string sheetName, string notFoundMessage)
+{
+    try
+    {
+        if (file != null)
+        {
+            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file.Name);
+            if (fileNameWithoutExtension.Contains("Global"))
+            {
+                dailyActivitySheetName = fileNameWithoutExtension;
+                // sheetName = dailyActivitySheetName;
+                sheetName = "Call Stats Template";
+            }
+
+            if (!string.IsNullOrEmpty(sheetName) && sheetName.ToUpper().Contains(sheetName.ToUpper()))
+            {
+                string outputFilePath = CreateExcelForDailyPatientSiteFile(file, sheetName);
+                if (!string.IsNullOrEmpty(outputFilePath))
+                {
+                    InsertIntoDatabase(outputFilePath, sheetName); // Insert data into database after creating Excel
+                }
+            }
+        }
+        else
+        {
+            LogToErrorFile(notFoundMessage);
+            Console.WriteLine(notFoundMessage);
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+    }
+}
+
+public string CreateExcelForDailyPatientSiteFile(FileInfo aAPCSRFile, string sheetName)
+{
+    string outputFilePath = string.Empty;
+    try
+    {
+        using (var workbook = new XSSFWorkbook())
+        {
+            string sourcefile = aAPCSRFile?.ToString() ?? string.Empty;
+
+            outputFilePath = Path.Combine(exportDirectory, $"{sheetName}.xlsx");
+            if (!string.IsNullOrEmpty(sheetName))
+            {
+                ISheet sheet = workbook.CreateSheet(sheetName); // Create a blank sheet
+
+                if (!string.IsNullOrEmpty(sourcefile))
+                {
+                    LoadDailyPatientSiteCsvData(sourcefile, sheet, workbook, sheetName);  // Load data from csv file and insert into blank sheet
+                }
+
+                using (FileStream stream = new FileStream(outputFilePath, FileMode.Create, FileAccess.Write)) // Save the workbook to an XLSX file
+                {
+                    workbook.Write(stream);
+                }
+                Console.WriteLine(sheetName + "...csv file copied to XLSX successfully...");
+            }
+            else
+            {
+                StartConsoleWriting("Sheet name is null or empty.");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+    return outputFilePath;
+}
