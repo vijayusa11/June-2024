@@ -1,0 +1,65 @@
+The error you're encountering is due to the misuse of the `filePath` variable. The `filePath` variable should contain the path to the local file that you want to upload to SharePoint, but it seems to be confused with the SharePoint target URL.
+
+Here’s how you can properly handle the file upload:
+
+1. Ensure that `filePath` is the correct path to a local file on your system.
+2. Update the target SharePoint folder URL and file name handling correctly.
+3. Use the correct SharePoint credentials.
+
+Below is the corrected code:
+
+```csharp
+public void ExampleMethod(string filePath)
+{
+    try
+    {
+        string siteUrl = "https://gpslocums.sharepoint.com/sites/PowerBI"; // SharePoint site URL
+        string username = "GPSLOCUMSLTD\\qxserviceaccount"; // SharePoint username
+        string password = "RuthlessMagician2205!";
+
+        SecureString securePassword = new SecureString();
+        foreach (char c in password.ToCharArray())
+            securePassword.AppendChar(c);
+
+        using (ClientContext context = new ClientContext(siteUrl))
+        {
+            // Provide count and credentials for your SharePoint environment
+            context.Credentials = new System.Net.NetworkCredential(username, password);
+
+            // Get the SharePoint web  
+            string targetFolderUrl = "https://gpslocums-my.sharepoint.com/personal/qxserviceaccount_medsolhealthcare_com/Documents/Test%20Phone%20BOT%20File";
+
+            // File details
+            string fileName = Path.GetFileName(filePath);
+            string targetFileUrl = $"{targetFolderUrl}/{fileName}";
+
+            // Read file content
+            byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+
+            // Upload file
+            FileCreationInformation newFile = new FileCreationInformation
+            {
+                Content = fileContent,
+                Url = fileName,
+                Overwrite = true
+            };
+
+            List docs = context.Web.Lists.GetByTitle("Documents");
+            Microsoft.SharePoint.Client.File uploadFile = docs.RootFolder.Files.Add(newFile);
+            context.Load(uploadFile);
+            context.ExecuteQuery();
+
+            Console.WriteLine("File uploaded successfully to SharePoint.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+        // Log the error or handle it as per your application's error handling strategy
+    }
+}
+```
+
+### Explanation:
+
+1. **File Path
