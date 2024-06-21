@@ -1,0 +1,55 @@
+if i have to upload a file on sharepoint which method i have to use NetworkCredential for SharePointOnlineCredentials
+NetworkCredential	or SharePointOnlineCredentials
+
+public void ExampleMethod(string filePath)
+{
+    try
+    {
+        string siteUrl = "https://gpslocums.sharepoint.com/sites/PowerBI"; // SharePoint site URL
+        string username = "GPSLOCUMSLTD\\qxserviceaccount"; // SharePoint username
+        string password = "RuthlessMagician2205!";
+
+        SecureString securePassword = new SecureString();
+        foreach (char c in password.ToCharArray())
+            securePassword.AppendChar(c);
+
+        using (ClientContext context = new ClientContext(siteUrl))
+        {
+            // Provide count and credentials for your SharePoint environment
+            context.Credentials = new System.Net.NetworkCredential(username, password);
+
+            // Get the SharePoint web  
+           // string targetFolderUrl = "https://gpslocums-my.sharepoint.com/:f:/g/personal/qxserviceaccount_medsolhealthcare_com/ErxLaXJ43vtHilbwOw-1rIkBrHHhvF2FWDyc49WsXu3hxQ?e=jYMfXb";
+
+            string targetFolderUrl = "https://gpslocums-my.sharepoint.com/personal/qxserviceaccount_medsolhealthcare_com/_layouts/15/onedrive.aspx?view=0&id=%2Fpersonal%2Fqxserviceaccount%5Fmedsolhealthcare%5Fcom%2FDocuments%2FTest%20Phone%20BOT%20File";
+
+            // File details
+            string fileName = Path.GetFileName(filePath);
+            string targetFileUrl = $"{targetFolderUrl}/{fileName}";
+
+            // Read file content
+            byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+
+            // Upload file
+            FileCreationInformation newFile = new FileCreationInformation
+            {
+                Content = fileContent,
+                // Url = fileName,
+                Url = targetFileUrl,
+                Overwrite = false
+            };
+
+            List docs = context.Web.Lists.GetByTitle("Documents");
+            Microsoft.SharePoint.Client.File uploadFile = docs.RootFolder.Files.Add(newFile);
+            context.Load(uploadFile);
+            context.ExecuteQuery();
+
+            Console.WriteLine("File uploaded successfully to SharePoint.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+        // Log the error or handle it as per your application's error handling strategy
+    }
+}
