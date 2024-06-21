@@ -1,0 +1,93 @@
+Indeed, using `SharePointOnlineCredentials` is not supported in .NET Standard. A modern approach involves registering an Azure AD application and using its credentials to authenticate against SharePoint Online. Here's a step-by-step guide to achieve this:
+
+1. **Register an Azure AD App**:
+    - Go to the Azure portal and navigate to "Azure Active Directory".
+    - Select "App registrations" and then click "New registration".
+    - Provide a name for your application and set the redirect URI to a relevant value (e.g., `https://localhost`).
+    - Click "Register".
+
+2. **Configure API Permissions**:
+    - After registering the app, go to "API permissions".
+    - Click "Add a permission" and select "SharePoint".
+    - Select "Delegated permissions" and add `AllSites.FullControl`.
+    - Grant admin consent for the permissions.
+
+3. **Create a Client Secret**:
+    - Go to "Certificates & secrets" and create a new client secret.
+    - Copy the client secret value as you will need it in your application.
+
+4. **Use MSAL to Acquire Access Token**:
+    - Install the necessary NuGet packages:
+      ```
+      Microsoft.Identity.Client
+      Microsoft.Graph
+      ```
+    - Use the following code to authenticate and upload a file to SharePoint:
+
+```csharp
+using Microsoft.Graph;
+using Microsoft.Identity.Client;
+using System;
+using System.IO;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
+
+public async Task ExampleMethodAsync(string filePath)
+{
+    try
+    {
+        string siteUrl = "https://gpslocums.sharepoint.com/sites/PowerBI"; // SharePoint site URL
+        string tenantId = "your-tenant-id"; // Tenant ID
+        string clientId = "your-client-id"; // Client ID
+        string clientSecret = "your-client-secret"; // Client Secret
+
+        var clientApp = ConfidentialClientApplicationBuilder.Create(clientId)
+            .WithClientSecret(clientSecret)
+            .WithAuthority(new Uri($"https://login.microsoftonline.com/{tenantId}"))
+            .Build();
+
+        var authResult = await clientApp.AcquireTokenForClient(new[] { "https://graph.microsoft.com/.default" }).ExecuteAsync();
+
+        var graphClient = new GraphServiceClient(new DelegateAuthenticationProvider(
+            (requestMessage) =>
+            {
+                requestMessage.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult.AccessToken);
+                return Task.CompletedTask;
+            }));
+
+        string targetFolderUrl = "https://gpslocums-my.sharepoint.com/personal/qxserviceaccount_medsolhealthcare_com/Documents";
+
+        // Read file content
+        byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+        using (var stream = new MemoryStream(fileContent))
+        {
+            var uploadItem = new DriveItemUploadableProperties
+            {
+                Name = Path.GetFileName(filePath),
+                AdditionalData = new Dictionary<string, object>
+                {
+                    { "@microsoft.graph.conflictBehavior", "rename" }
+                }
+            };
+
+            var uploadedFile = await graphClient.Sites["gpslocums.sharepoint.com:/sites/PowerBI"]
+                .Drive.Root.ItemWithPath($"{targetFolderUrl}/{Path.GetFileName(filePath)}")
+                .Content.Request()
+                .PutAsync<DriveItem>(stream);
+
+            Console.WriteLine("File uploaded successfully to SharePoint.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+        // Log the error or handle it as per your application's error handling strategy
+    }
+}
+```
+
+### Key Points:
+- Replace placeholders (`your-tenant-id`, `your-client-id`, `your-client-secret`) with actual values from your Azure AD app.
+- Use Microsoft Graph API to interact with SharePoint, which is more flexible and modern compared to legacy SharePoint APIs.
+
+This method uses the Microsoft Graph SDK to interact with SharePoint and requires setting up an Azure AD app for authentication, providing a more secure and scalable solution.
