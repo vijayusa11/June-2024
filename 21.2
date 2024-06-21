@@ -1,0 +1,72 @@
+```csharp
+using System;
+using System.IO;
+using System.Security;
+using Microsoft.SharePoint.Client;
+
+public void ExampleMethod(string filePath)
+{
+    try
+    {
+        string siteUrl = "https://gpslocums.sharepoint.com/sites/PowerBI"; // SharePoint site URL
+        string username = "qxserviceaccount@medsolhealthcare.com"; // SharePoint Online username (UPN)
+        string password = "RuthlessMagician2205!";
+
+        SecureString securePassword = new SecureString();
+        foreach (char c in password.ToCharArray())
+            securePassword.AppendChar(c);
+
+        using (ClientContext context = new ClientContext(siteUrl))
+        {
+            // Provide credentials for your SharePoint Online environment
+            context.Credentials = new SharePointOnlineCredentials(username, securePassword);
+
+            // Get the SharePoint web
+            Web web = context.Web;
+            context.Load(web);
+            context.ExecuteQuery();
+
+            // Ensure the folder URL is relative to the site URL
+            string targetFolderUrl = "/sites/PowerBI/Shared Documents"; // Adjust target folder URL accordingly
+
+            // File details
+            string fileName = Path.GetFileName(filePath);
+            string targetFileUrl = $"{targetFolderUrl}/{fileName}";
+
+            // Read file content
+            byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+
+            // Upload file
+            FileCreationInformation newFile = new FileCreationInformation
+            {
+                Content = fileContent,
+                Url = fileName,
+                Overwrite = true // Set to true to overwrite the file if it already exists
+            };
+
+            List docs = web.Lists.GetByTitle("Documents");
+            Microsoft.SharePoint.Client.File uploadFile = docs.RootFolder.Files.Add(newFile);
+            context.Load(uploadFile);
+            context.ExecuteQuery();
+
+            Console.WriteLine("File uploaded successfully to SharePoint.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+        // Log the error or handle it as per your application's error handling strategy
+    }
+}
+```
+
+### Key Adjustments:
+1. **Credentials**: Using `SharePointOnlineCredentials` to handle authentication for SharePoint Online.
+2. **URL Handling**: Ensuring that the folder URL is relative to the site URL.
+3. **File Creation Information**: Setting `Overwrite` to `true` allows overwriting of the file if it already exists.
+
+### Additional Tips:
+- **Permissions**: Ensure that the user account (`qxserviceaccount@medsolhealthcare.com`) has the necessary permissions to upload files to the specified document library.
+- **Logging**: Enhance error logging to capture more details, such as the specific error message or stack trace, to help diagnose issues more effectively.
+
+This approach should resolve the `403 Forbidden` error and facilitate successful file uploads to SharePoint Online.
