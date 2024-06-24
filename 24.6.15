@@ -1,0 +1,156 @@
+To ensure that the `LoadDailyPatientSiteCsvData` method aligns with the updated approach for handling CSV files, we need to update it similarly to how we updated the `AppendDailyPatientSiteCsvData` method. Specifically, it should use `StreamWriter` for writing to the CSV file, and it should call the appropriate methods to create the header row and process the data rows.
+
+Here's the complete code with the updated `LoadDailyPatientSiteCsvData` method and related methods:
+
+### `CreateHeaderRow` Method
+
+```csharp
+void CreateHeaderRow(StreamWriter writer)
+{
+    try
+    {
+        // Define the headers
+        string[] headers = { "Date", "Agent", "TimesheetOwner", "Total Talking time" };
+
+        // Write headers to the CSV file
+        writer.WriteLine(string.Join(",", headers));
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### `ProcessDataRows` Method
+
+```csharp
+void ProcessDataRows(StreamWriter writer, string[] valueLines)
+{
+    try
+    {
+        // Write data rows to the CSV file
+        writer.WriteLine(string.Join(",", valueLines));
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### `LoadDailyPatientSiteCsvData` Method
+
+```csharp
+public void LoadDailyPatientSiteCsvData(string filePath, StreamWriter writer)
+{
+    try
+    {
+        using (TextFieldParser reader = new TextFieldParser(filePath))
+        {
+            reader.HasFieldsEnclosedInQuotes = true;
+            reader.SetDelimiters("\t");
+
+            int rowIndex = 0;
+            bool headerCreated = writer.BaseStream.Length > 0; // Check if the CSV file already has content
+
+            while (!reader.EndOfData)
+            {
+                var valueLines = reader.ReadFields();
+                if (!headerCreated)
+                {
+                    CreateHeaderRow(writer);
+                    headerCreated = true;
+                }
+                else if (int.TryParse(valueLines[0].Split(' ')[0], out _)) // Check if the first part is numeric
+                {
+                    ProcessDataRows(writer, valueLines);
+                    rowIndex++;
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+        throw;
+    }
+}
+```
+
+### Full Example Code
+
+#### `ProcessFile` Method
+
+```csharp
+private void ProcessFile(FileInfo file, string sheetName, string notFoundMessage)
+{
+    try
+    {
+        if (file != null)
+        {
+            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file.Name);
+            if (fileNameWithoutExtension.Contains("Global"))
+            {
+                dailyActivitySheetName = fileNameWithoutExtension;
+                sheetName = "Call Stats Template";
+            }
+
+            if (!string.IsNullOrEmpty(sheetName) && sheetName.ToUpper().Contains(sheetName.ToUpper()))
+            {
+                string outputFilePath = CreateCsvForDailyPatientSiteFile(file, sheetName);
+                if (!string.IsNullOrEmpty(outputFilePath))
+                {
+                    InsertIntoDatabase(outputFilePath, sheetName); // Insert data into database after creating CSV
+                }
+            }
+        }
+        else
+        {
+            LogToErrorFile(notFoundMessage);
+            Console.WriteLine(notFoundMessage);
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+    }
+}
+```
+
+#### `CreateCsvForDailyPatientSiteFile` Method
+
+```csharp
+public string CreateCsvForDailyPatientSiteFile(FileInfo aAPCSRFile, string sheetName)
+{
+    string outputFilePath = string.Empty;
+    try
+    {
+        string sourceFile = aAPCSRFile?.ToString() ?? string.Empty;
+        outputFilePath = Path.Combine(exportDirectory, $"{sheetName}.csv");
+
+        using (StreamWriter writer = new StreamWriter(outputFilePath, true)) // Append mode
+        {
+            if (!string.IsNullOrEmpty(sourceFile))
+            {
+                LoadDailyPatientSiteCsvData(sourceFile, writer); // Load data from CSV file into CSV file
+            }
+        }
+
+        Console.WriteLine(sheetName + "...csv file copied successfully...");
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+    return outputFilePath;
+}
+```
+
+### Summary
+
+This complete example aligns the `LoadDailyPatientSiteCsvData` method with the updated approach of using `StreamWriter` for handling CSV files. Ensure that all method signatures match their usage to avoid any parameter mismatch errors. This should resolve any issues related to method overloading errors you were experiencing.
