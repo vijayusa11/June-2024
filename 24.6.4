@@ -1,0 +1,142 @@
+To convert the output file from `.xlsx` to `.csv` format and then upload the `.csv` file to SharePoint, you need to modify the `CreateExcelForDailyPatientSiteFile` method to save the data in `.csv` format and then use your existing method to upload this `.csv` file to SharePoint. Here's how you can do it:
+
+1. **Convert `.xlsx` to `.csv`**:
+   Create a method to convert the `XSSFWorkbook` to `.csv`.
+
+2. **Update the `CreateExcelForDailyPatientSiteFile` method**:
+   Modify this method to call the new conversion method after creating the `.xlsx` file.
+
+3. **Upload the `.csv` file to SharePoint**:
+   Use the existing `ExampleMethod` for uploading.
+
+Here is the updated code with these changes:
+
+```csharp
+public string CreateExcelForDailyPatientSiteFile(FileInfo aAPCSRFile, string sheetName)
+{
+    string outputFilePath = string.Empty;
+    string csvFilePath = string.Empty;
+    XSSFWorkbook workbook = null;
+    try
+    {
+        string sourceFile = aAPCSRFile?.ToString() ?? string.Empty;
+        outputFilePath = Path.Combine(exportDirectory, $"{sheetName}.xlsx");
+        csvFilePath = Path.Combine(exportDirectory, $"{sheetName}.csv");
+
+        if (File.Exists(outputFilePath))
+        {
+            // Open existing workbook
+            using (FileStream fs = new FileStream(outputFilePath, FileMode.Open, FileAccess.Read))
+            {
+                workbook = new XSSFWorkbook(fs);
+            }
+        }
+        else
+        {
+            // Create new workbook
+            workbook = new XSSFWorkbook();
+        }
+
+        ISheet sheet = workbook.GetSheet(sheetName) ?? workbook.CreateSheet(sheetName); // Create or get sheet
+
+        if (!string.IsNullOrEmpty(sourceFile))
+        {
+            AppendDailyPatientSiteCsvData(sourceFile, sheet, workbook, sheetName); // Append data from CSV file into sheet
+        }
+
+        using (FileStream stream = new FileStream(outputFilePath, FileMode.Create, FileAccess.Write)) // Save the workbook to an XLSX file
+        {
+            workbook.Write(stream);
+        }
+
+        // Convert the XLSX file to CSV
+        ConvertXlsxToCsv(workbook, csvFilePath);
+
+        Console.WriteLine(sheetName + "...csv file copied to XLSX successfully...");
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+    finally
+    {
+        workbook?.Close();
+    }
+    return csvFilePath;
+}
+
+private void ConvertXlsxToCsv(XSSFWorkbook workbook, string csvFilePath)
+{
+    using (var writer = new StreamWriter(csvFilePath))
+    {
+        for (int i = 0; i < workbook.NumberOfSheets; i++)
+        {
+            var sheet = workbook.GetSheetAt(i);
+            for (int j = 0; j <= sheet.LastRowNum; j++)
+            {
+                var row = sheet.GetRow(j);
+                if (row != null)
+                {
+                    var cells = row.Cells.Select(cell => cell.ToString());
+                    writer.WriteLine(string.Join(",", cells));
+                }
+            }
+        }
+    }
+}
+
+public void ExampleMethod(string filePath)
+{
+    try
+    {
+        string siteUrl = "https://gpslocums.sharepoint.com/sites/PowerBI"; // SharePoint site URL
+        string username = "GPSLOCUMSLTD\\qxserviceaccount"; // SharePoint username
+        string password = "RuthlessMagician2205!";
+
+        SecureString securePassword = new SecureString();
+        foreach (char c in password.ToCharArray())
+            securePassword.AppendChar(c);
+
+        using (ClientContext context = new ClientContext(siteUrl))
+        {
+            context.Credentials = new System.Net.NetworkCredential(username, securePassword);
+
+            string targetFolderUrl = "https://gpslocums.sharepoint.com/sites/PowerBI/Shared%20Documents/Forms/AllItems/QXTest";
+
+            // File details
+            string fileName = Path.GetFileName(filePath);
+            string targetFileUrl = $"{targetFolderUrl}/{fileName}";
+
+            // Read file content
+            byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+
+            // Upload file
+            FileCreationInformation newFile = new FileCreationInformation
+            {
+                Content = fileContent,
+                Url = targetFileUrl,
+                Overwrite = true
+            };
+
+            List docs = context.Web.Lists.GetByTitle("Documents");
+            Microsoft.SharePoint.Client.File uploadFile = docs.RootFolder.Files.Add(newFile);
+            context.Load(uploadFile);
+            context.ExecuteQuery();
+
+            Console.WriteLine("File uploaded successfully to SharePoint.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+    }
+}
+```
+
+### Explanation:
+1. **ConvertXlsxToCsv Method**: This method converts the `XSSFWorkbook` into a `.csv` file by iterating through each sheet and row, writing the data to a `.csv` file.
+2. **CreateExcelForDailyPatientSiteFile Method**: This method now calls `ConvertXlsxToCsv` after creating the `.xlsx` file and returns the path to the `.csv` file.
+3. **ExampleMethod**: This remains unchanged and is used to upload the generated `.csv` file to SharePoint.
+
+With these updates, your application will create a `.csv` file from the data, save it, and upload it to SharePoint.
