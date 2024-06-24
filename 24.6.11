@@ -1,0 +1,172 @@
+To modify your code so that it generates a CSV file instead of an Excel file, you'll need to change the parts of your code that create and manipulate the `XSSFWorkbook` and `ISheet` objects. Instead, you'll write directly to a CSV file. Here’s how you can adjust your methods to create a CSV file:
+
+### Step-by-Step Changes
+
+1. **Change File Creation Logic:**
+   - Replace the Excel file creation logic with CSV file creation logic.
+   - Adjust the method to append data to a CSV file.
+
+2. **Adjust Header and Data Row Creation:**
+   - Modify the `CreateHeaderRow` and `ProcessDataRows` methods to write to the CSV file.
+
+### Updated Code
+
+Here is the updated version of your methods to generate a CSV file instead of an Excel file:
+
+```csharp
+private void ProcessFiles(List<FileInfo> fileList)
+{
+    try
+    {
+        var dailyActivityFile = fileList.FirstOrDefault(t => t.Name.ToUpper().Contains("Global".ToUpper()) && IsCsvFile(t));
+        ProcessFile(dailyActivityFile, dailyActivitySheetName, "Daily Activity file not found.");
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+
+private void ProcessFile(FileInfo file, string sheetName, string notFoundMessage)
+{
+    try
+    {
+        if (file != null)
+        {
+            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file.Name);
+            if (fileNameWithoutExtension.Contains("Global"))
+            {
+                dailyActivitySheetName = fileNameWithoutExtension;
+                sheetName = "Call Stats Template";
+            }
+
+            if (!string.IsNullOrEmpty(sheetName) && sheetName.ToUpper().Contains(sheetName.ToUpper()))
+            {
+                string outputFilePath = CreateCsvForDailyPatientSiteFile(file, sheetName);
+                if (!string.IsNullOrEmpty(outputFilePath))
+                {
+                    InsertIntoDatabase(outputFilePath, sheetName); // Insert data into database after creating CSV
+                }
+            }
+        }
+        else
+        {
+            LogToErrorFile(notFoundMessage);
+            Console.WriteLine(notFoundMessage);
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+    }
+}
+
+public string CreateCsvForDailyPatientSiteFile(FileInfo aAPCSRFile, string sheetName)
+{
+    string outputFilePath = string.Empty;
+    try
+    {
+        string sourceFile = aAPCSRFile?.ToString() ?? string.Empty;
+        outputFilePath = Path.Combine(exportDirectory, $"{sheetName}.csv");
+
+        using (StreamWriter writer = new StreamWriter(outputFilePath, true)) // Append mode
+        {
+            if (!string.IsNullOrEmpty(sourceFile))
+            {
+                AppendDailyPatientSiteCsvData(sourceFile, writer); // Append data from CSV file into CSV file
+            }
+        }
+
+        Console.WriteLine(sheetName + "...csv file copied successfully...");
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+    return outputFilePath;
+}
+
+public void AppendDailyPatientSiteCsvData(string filePath, StreamWriter writer)
+{
+    try
+    {
+        using (TextFieldParser reader = new TextFieldParser(filePath))
+        {
+            reader.HasFieldsEnclosedInQuotes = true;
+            reader.SetDelimiters("\t");
+
+            bool headerCreated = writer.BaseStream.Length > 0; // Check if the CSV file already has content
+
+            while (!reader.EndOfData)
+            {
+                var valueLines = reader.ReadFields();
+                if (!headerCreated)
+                {
+                    CreateHeaderRow(writer);
+                    headerCreated = true;
+                }
+                else if (int.TryParse(valueLines[0].Split(' ')[0], out _)) // Check if the first part is numeric
+                {
+                    ProcessDataRows(writer, valueLines);
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+        throw;
+    }
+}
+
+void CreateHeaderRow(StreamWriter writer)
+{
+    try
+    {
+        // Define the headers
+        string[] headers = { "Date", "Agent", "TimesheetOwner", "Total Talking time" };
+
+        // Write headers to the CSV file
+        writer.WriteLine(string.Join(",", headers));
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+
+void ProcessDataRows(StreamWriter writer, string[] valueLines)
+{
+    try
+    {
+        // Write data rows to the CSV file
+        writer.WriteLine(string.Join(",", valueLines));
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### Explanation:
+
+1. **ProcessFile Method:**
+   - Changed the method to call `CreateCsvForDailyPatientSiteFile` instead of the Excel counterpart.
+
+2. **CreateCsvForDailyPatientSiteFile Method:**
+   - This method now creates a CSV file or appends to it if it already exists.
+
+3. **AppendDailyPatientSiteCsvData Method:**
+   - Reads the CSV file and writes the data into another CSV file.
+   - Includes logic to create the header row if it hasn't been created already.
+
+4. **CreateHeaderRow and ProcessDataRows Methods:**
+   - These methods write header and data rows directly to the CSV file using a `StreamWriter`.
+
+With these changes, your output will be in CSV format, and you will still be able to insert the data into the database as before.
