@@ -1,0 +1,238 @@
+To insert data into the database from a CSV file, you'll need to read the CSV file and insert each row's data into the database table. Below is the code for `InsertIntoDatabase` method that reads from the CSV file and inserts the data into the database:
+
+```csharp
+private void InsertIntoDatabase(string csvFilePath, string sheetName)
+{
+    if (string.IsNullOrEmpty(sheetName))
+    {
+        LogToErrorFile("Sheet name is null or empty.");
+        return;
+    }
+
+    try
+    {
+        using (SqlConnection connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime)
+                                   VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime)";
+
+            string checkExistenceQuery = @"SELECT COUNT(*) FROM OutputFileDetails
+                                           WHERE Date = @Date AND Agent = @Agent AND TimesheetOwner = @TimesheetOwner AND TotalTalkingTime = @TotalTalkingTime";
+
+            using (SqlCommand insertCommand = new SqlCommand(insertQuery, connection))
+            using (SqlCommand checkCommand = new SqlCommand(checkExistenceQuery, connection))
+            {
+                using (StreamReader reader = new StreamReader(csvFilePath))
+                {
+                    string line;
+                    bool isHeader = true;
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        // Skip the header line
+                        if (isHeader)
+                        {
+                            isHeader = false;
+                            continue;
+                        }
+
+                        // Parse the CSV line
+                        var values = line.Split(',');
+
+                        DateTime date = DateTime.ParseExact(values[0], "dd-MM-yyyy", CultureInfo.InvariantCulture);
+                        string agent = values[1];
+                        string timesheetOwner = values[2];
+                        string totalTalkingTime = values[3];
+
+                        checkCommand.Parameters.Clear();
+                        checkCommand.Parameters.AddWithValue("@Date", date);
+                        checkCommand.Parameters.AddWithValue("@Agent", agent);
+                        checkCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                        checkCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                        int rowCount = (int)checkCommand.ExecuteScalar();
+
+                        if (rowCount == 0)
+                        {
+                            insertCommand.Parameters.Clear();
+                            insertCommand.Parameters.AddWithValue("@Date", date);
+                            insertCommand.Parameters.AddWithValue("@Agent", agent);
+                            insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                            insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                            insertCommand.ExecuteNonQuery();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### Explanation
+
+1. **Connection to the Database:**
+   - The method opens a connection to the database using a connection string from the configuration settings.
+
+2. **SQL Commands:**
+   - `insertQuery`: SQL command to insert data into the `OutputFileDetails` table.
+   - `checkExistenceQuery`: SQL command to check if a record already exists in the `OutputFileDetails` table.
+
+3. **Reading from CSV File:**
+   - The method reads each line from the CSV file using a `StreamReader`.
+   - It skips the header line and then parses each subsequent line.
+
+4. **Data Insertion:**
+   - For each row of data, it checks if a record with the same values already exists in the database.
+   - If the record does not exist, it inserts the new record into the database.
+
+5. **Exception Handling:**
+   - Any exceptions encountered are logged and handled appropriately.
+
+### Required Namespaces
+
+Make sure you have the following namespaces:
+
+```csharp
+using System;
+using System.Configuration;
+using System.Data.SqlClient;
+using System.Globalization;
+using System.IO;
+```
+
+### Note
+
+Ensure your `OutputFileDetails` table has columns with appropriate data types and names matching those used in the `insertQuery`.
+
+This method assumes your CSV file uses comma `,` as a delimiter. If the delimiter is different (e.g., tab `\t`), adjust the `Split` method accordingly.
+
+
+
+
+To process data rows for inserting into the database, we need to modify the `ProcessDataRows` method so that it correctly handles the CSV file format and data types. Here's a revised version of the `ProcessDataRows` method along with an updated `AppendDailyPatientSiteCsvData` method for handling the CSV data processing:
+
+### Updated `AppendDailyPatientSiteCsvData` Method
+
+```csharp
+public void AppendDailyPatientSiteCsvData(string filePath, string outputFilePath)
+{
+    try
+    {
+        using (var reader = new StreamReader(filePath))
+        using (var writer = new StreamWriter(outputFilePath))
+        {
+            bool headerWritten = false;
+            while (!reader.EndOfStream)
+            {
+                var line = reader.ReadLine();
+                var values = line.Split('\t');
+
+                if (!headerWritten)
+                {
+                    CreateHeaderRow(writer);
+                    headerWritten = true;
+                }
+                
+                if (int.TryParse(values[0].Split(' ')[0], out _)) // Check if the first part is numeric
+                {
+                    ProcessDataRow(writer, values);
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+        throw;
+    }
+}
+```
+
+### Create Header Row Method for CSV
+
+```csharp
+void CreateHeaderRow(StreamWriter writer)
+{
+    try
+    {
+        string[] headers = { "Date", "Agent", "TimesheetOwner", "TotalTalkingTime" };
+        writer.WriteLine(string.Join(",", headers));
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### Process Data Row Method
+
+```csharp
+void ProcessDataRow(StreamWriter writer, string[] values)
+{
+    try
+    {
+        string date = DateTime.ParseExact(values[0], "dd-MM-yyyy", CultureInfo.InvariantCulture).ToString("yyyy-MM-dd");
+        string agent = values[1];
+        string timesheetOwner = values[2];
+        string totalTalkingTime = values[3];
+
+        string[] processedValues = { date, agent, timesheetOwner, totalTalkingTime };
+        writer.WriteLine(string.Join(",", processedValues));
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### Explanation
+
+1. **AppendDailyPatientSiteCsvData Method:**
+   - Opens the CSV file for reading and a new CSV file for writing.
+   - Writes the header row only once.
+   - Processes each data row and writes it to the output CSV file.
+
+2. **CreateHeaderRow Method:**
+   - Writes the header row to the CSV file.
+
+3. **ProcessDataRow Method:**
+   - Converts the date to the required format.
+   - Processes each data row and writes it to the CSV file.
+
+4. **Exception Handling:**
+   - Exceptions are logged and handled appropriately.
+
+### Required Namespaces
+
+Ensure you have the following namespaces:
+
+```csharp
+using System;
+using System.Globalization;
+using System.IO;
+```
+
+### Complete Example Usage
+
+Here is an example of how you might call the `AppendDailyPatientSiteCsvData` method:
+
+```csharp
+string inputFilePath = "path_to_input_file.csv";
+string outputFilePath = "path_to_output_file.csv";
+AppendDailyPatientSiteCsvData(inputFilePath, outputFilePath);
+```
+
+This setup processes the data from the input CSV file and writes it to a new output CSV file with the correct format. The `InsertIntoDatabase` method can then read from this output CSV file to insert the data into the database.
