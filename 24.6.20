@@ -1,0 +1,124 @@
+To modify your `CreateExcelForDailyPatientSiteFile` method to create a CSV file instead of an XLSX file, you'll need to replace the parts of the code that handle the XLSX format with appropriate CSV handling code. Below is the modified method to create a CSV file:
+
+```csharp
+public string CreateCsvForDailyPatientSiteFile(FileInfo aAPCSRFile, string sheetName)
+{
+    string outputFilePath = string.Empty;
+    try
+    {
+        string sourceFile = aAPCSRFile?.ToString() ?? string.Empty;
+        outputFilePath = Path.Combine(exportDirectory, $"{sheetName}.csv");
+
+        using (var writer = new StreamWriter(outputFilePath))
+        {
+            if (!string.IsNullOrEmpty(sourceFile))
+            {
+                AppendDailyPatientSiteCsvData(sourceFile, writer); // Append data from CSV file into new CSV file
+            }
+        }
+
+        Console.WriteLine(sheetName + "...csv file created successfully...");
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+    return outputFilePath;
+}
+
+public void AppendDailyPatientSiteCsvData(string sourceFilePath, StreamWriter writer)
+{
+    try
+    {
+        using (var reader = new StreamReader(sourceFilePath))
+        {
+            bool headerWritten = false;
+            while (!reader.EndOfStream)
+            {
+                var line = reader.ReadLine();
+                var values = line.Split('\t');
+
+                if (!headerWritten)
+                {
+                    CreateHeaderRow(writer);
+                    headerWritten = true;
+                }
+                
+                if (int.TryParse(values[0].Split(' ')[0], out _)) // Check if the first part is numeric
+                {
+                    ProcessDataRow(writer, values);
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+        throw;
+    }
+}
+
+void CreateHeaderRow(StreamWriter writer)
+{
+    try
+    {
+        string[] headers = { "Date", "Agent", "TimesheetOwner", "TotalTalkingTime" };
+        writer.WriteLine(string.Join(",", headers));
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+
+void ProcessDataRow(StreamWriter writer, string[] values)
+{
+    try
+    {
+        string date = DateTime.ParseExact(values[0], "dd-MM-yyyy", CultureInfo.InvariantCulture).ToString("yyyy-MM-dd");
+        string agent = values[1];
+        string timesheetOwner = values[2];
+        string totalTalkingTime = values[3];
+
+        string[] processedValues = { date, agent, timesheetOwner, totalTalkingTime };
+        writer.WriteLine(string.Join(",", processedValues));
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### Explanation
+
+1. **CreateCsvForDailyPatientSiteFile Method:**
+   - Constructs the output file path with a `.csv` extension.
+   - Opens a `StreamWriter` to write to the CSV file.
+   - Calls `AppendDailyPatientSiteCsvData` to read from the source file and write to the output CSV file.
+
+2. **AppendDailyPatientSiteCsvData Method:**
+   - Reads the source CSV file using a `StreamReader`.
+   - Writes the header row once.
+   - Processes each data row and writes it to the new CSV file using `ProcessDataRow`.
+
+3. **CreateHeaderRow Method:**
+   - Writes the header row to the CSV file using the `StreamWriter`.
+
+4. **ProcessDataRow Method:**
+   - Converts the date format and writes each data row to the CSV file.
+
+### Usage Example
+
+Here is an example of how you might call the `CreateCsvForDailyPatientSiteFile` method:
+
+```csharp
+FileInfo inputFile = new FileInfo("path_to_input_file.csv");
+string outputFilePath = CreateCsvForDailyPatientSiteFile(inputFile, "DailyPatientSiteData");
+```
+
+This setup processes the data from the input CSV file and writes it to a new output CSV file with the correct format.
