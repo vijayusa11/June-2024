@@ -1,0 +1,100 @@
+To ensure the header row is created once, you can add a flag that will keep track of whether the header row has already been created. This flag should be checked before creating the header row and then set to `true` after the header row is created.
+
+Here's an updated version of your `AppendDailyPatientSiteCsvData` method that includes a flag for the header row creation:
+
+```csharp
+public void AppendDailyPatientSiteCsvData(string filePath, ISheet sheet, XSSFWorkbook workbook, string sheetName)
+{
+    try
+    {
+        XSSFCellStyle numberStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+        numberStyle.DataFormat = workbook.CreateDataFormat().GetFormat("General");
+
+        XSSFCellStyle dateStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+        dateStyle.DataFormat = workbook.CreateDataFormat().GetFormat("dd-MM-yyyy");
+
+        XSSFCellStyle timeStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+        timeStyle.DataFormat = workbook.CreateDataFormat().GetFormat("hh:mm:ss");
+
+        using (TextFieldParser reader = new TextFieldParser(filePath))
+        {
+            reader.HasFieldsEnclosedInQuotes = true;
+            reader.SetDelimiters("\t");
+
+            int rowIndex = sheet.LastRowNum + 1; // Start appending from the last row
+            bool headerCreated = rowIndex > 0;  // Check if the sheet already has rows
+
+            while (!reader.EndOfData)
+            {
+                var valueLines = reader.ReadFields();
+                if (!headerCreated)
+                {
+                    CreateHeaderRow(sheet, numberStyle);
+                    headerCreated = true;
+                }
+                else if (int.TryParse(valueLines[0].Split(' ')[0], out _)) // Check if the first part is numeric
+                {
+                    ProcessDataRows(sheet, rowIndex, valueLines, dateStyle, numberStyle, timeStyle);
+                    rowIndex++;
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+        throw;
+    }
+}
+
+private void CreateHeaderRow(ISheet sheet, XSSFCellStyle headerStyle)
+{
+    // Example header row creation, modify as per your requirement
+    IRow headerRow = sheet.CreateRow(0);
+
+    ICell headerCell = headerRow.CreateCell(0);
+    headerCell.SetCellValue("Date");
+    headerCell.CellStyle = headerStyle;
+
+    headerCell = headerRow.CreateCell(1);
+    headerCell.SetCellValue("Agent");
+    headerCell.CellStyle = headerStyle;
+
+    headerCell = headerRow.CreateCell(2);
+    headerCell.SetCellValue("TimesheetOwner");
+    headerCell.CellStyle = headerStyle;
+
+    headerCell = headerRow.CreateCell(3);
+    headerCell.SetCellValue("TotalTalkingTime");
+    headerCell.CellStyle = headerStyle;
+}
+
+private void ProcessDataRows(ISheet sheet, int rowIndex, string[] valueLines, XSSFCellStyle dateStyle, XSSFCellStyle numberStyle, XSSFCellStyle timeStyle)
+{
+    IRow row = sheet.CreateRow(rowIndex);
+
+    ICell cell = row.CreateCell(0);
+    cell.SetCellValue(DateTime.Parse(valueLines[0])); // Adjust as necessary
+    cell.CellStyle = dateStyle;
+
+    cell = row.CreateCell(1);
+    cell.SetCellValue(valueLines[1]);
+    cell.CellStyle = numberStyle;
+
+    cell = row.CreateCell(2);
+    cell.SetCellValue(valueLines[2]);
+    cell.CellStyle = numberStyle;
+
+    cell = row.CreateCell(3);
+    cell.SetCellValue(valueLines[3]);
+    cell.CellStyle = numberStyle;
+}
+```
+
+### Summary of Changes:
+- **Header Creation Flag:** Added a `headerCreated` flag to check if the header row has already been created.
+- **Conditional Header Creation:** The header row is created only if it hasn't been created yet.
+- **Row Index Initialization:** Initialize `headerCreated` based on whether the sheet already has rows or not (`rowIndex > 0`).
+
+This ensures that the `CreateHeaderRow` method is called once to create the header, and then the remaining rows are processed correctly.
