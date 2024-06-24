@@ -1,0 +1,3 @@
+Severity	Code	Description	Project	File	Line	Suppression State
+Error	CS1501	No overload for method 'CreateHeaderRow' takes 2 arguments	MedsolPhoneEntry	D:\Projects\MedsolPhoneEntry\MedsolPhoneEntry\WebScrapping.cs	560	Active
+Error	CS1501	No overload for method 'ProcessDataRows' takes 6 arguments	MedsolPhoneEntry	D:\Projects\MedsolPhoneEntry\MedsolPhoneEntry\WebScrapping.cs	565	Active
