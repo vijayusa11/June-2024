@@ -1,0 +1,65 @@
+private void InsertIntoDatabase(string excelFilePath, string sheetName)
+{
+    if (string.IsNullOrEmpty(sheetName))
+    {
+        LogToErrorFile("Sheet name is null or empty.");
+        return;
+    }
+
+    try
+    {
+        using (SqlConnection connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string query = @"INSERT into OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime)
+                     values (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime)";
+
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                using (var workbook = new XSSFWorkbook(File.Open(excelFilePath, FileMode.Open, FileAccess.Read)))
+                {
+                    ISheet sheet = workbook.GetSheet(sheetName);
+
+                    if (sheet == null)
+                    {
+                        LogToErrorFile($"Sheet '{sheetName}' not found in workbook.");
+                        return;
+                    }
+
+                    for (int i = 1; i <= sheet.LastRowNum; i++)
+                    {
+                        var row = sheet.GetRow(i);
+                        if (row == null)
+                        {
+                            LogToErrorFile($"Row {i} is null.");
+                            continue;
+                        }
+
+                        DateTime date = (DateTime)row.GetCell(0).DateCellValue;
+                        string agent = row.GetCell(1).StringCellValue;
+                        string timesheetOwner = row.GetCell(2).StringCellValue;
+                        string totalTalkingTime = row.GetCell(3).StringCellValue;
+
+                        command.Parameters.Clear();
+                        command.Parameters.AddWithValue("@Date", date);
+                        command.Parameters.AddWithValue("@Agent", agent);
+                        command.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                        command.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                        command.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+
+its going to add data double
+for example first time if first time there are 100 row in excel then again next time 100 rows then it will add 200 rows in table so total count will 300
+and 3rd time again 100 rows input then in table there will 600 row count so i want to insert perticular row count insertion only like 100 then 200 then 300 
