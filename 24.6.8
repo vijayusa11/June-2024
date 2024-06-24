@@ -1,0 +1,46 @@
+ public void AppendDailyPatientSiteCsvData(string filePath, ISheet sheet, XSSFWorkbook workbook, string sheetName)
+ {
+     try
+     {
+         XSSFCellStyle numberStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+         numberStyle.DataFormat = workbook.CreateDataFormat().GetFormat("General");
+
+         XSSFCellStyle dateStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+         dateStyle.DataFormat = workbook.CreateDataFormat().GetFormat("dd-MM-yyyy");
+
+         XSSFCellStyle timeStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+         timeStyle.DataFormat = workbook.CreateDataFormat().GetFormat("hh:mm:ss");
+
+         using (TextFieldParser reader = new TextFieldParser(filePath))
+         {
+             reader.HasFieldsEnclosedInQuotes = true;
+             reader.SetDelimiters("\t");
+
+             int rowIndex = sheet.LastRowNum + 1; // Start appending from the last row
+
+             while (!reader.EndOfData)
+             {
+                 var valueLines = reader.ReadFields();
+                 if (rowIndex == 0)
+                 {
+                     CreateHeaderRow(sheet, numberStyle);
+                     rowIndex++;
+                 }
+                 else if (int.TryParse(valueLines[0].Split(' ')[0], out _)) // Check if the first part is numeric
+                 {
+                     ProcessDataRows(sheet, rowIndex, valueLines, dateStyle, numberStyle, timeStyle);
+                     rowIndex++;
+                 }
+             }
+         }
+     }
+     catch (Exception ex)
+     {
+         LogToErrorFile(ex.Message);
+         StartConsoleWriting(ex.Message);
+         throw;
+     }
+ }
+
+i want to execute CreateHeaderRow once to create header then remaining part will execute but currently its not going to create header
+ 
