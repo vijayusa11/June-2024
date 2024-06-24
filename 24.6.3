@@ -1,0 +1,198 @@
+private void ProcessFiles(List<FileInfo> fileList)
+{
+    try
+    {
+        var dailyActivityFile = fileList.FirstOrDefault(t => t.Name.ToUpper().Contains("Global".ToUpper()) && IsCsvFile(t));
+        ProcessFile(dailyActivityFile, dailyActivitySheetName, "Daily Activity file not found.");
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+
+private void ProcessFile(FileInfo file, string sheetName, string notFoundMessage)
+{
+    try
+    {
+        if (file != null)
+        {
+            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file.Name);
+            if (fileNameWithoutExtension.Contains("Global"))
+            {
+                dailyActivitySheetName = fileNameWithoutExtension;
+                // sheetName = dailyActivitySheetName;
+                sheetName = "Call Stats Template";
+            }
+
+            if (!string.IsNullOrEmpty(sheetName) && sheetName.ToUpper().Contains(sheetName.ToUpper()))
+            {
+                string outputFilePath = CreateExcelForDailyPatientSiteFile(file, sheetName);
+                if (!string.IsNullOrEmpty(outputFilePath))
+                {
+                    InsertIntoDatabase(outputFilePath, sheetName); // Insert data into database after creating Excel
+                }
+            }
+        }
+        else
+        {
+            LogToErrorFile(notFoundMessage);
+            Console.WriteLine(notFoundMessage);
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+    }
+}
+
+public string CreateExcelForDailyPatientSiteFile(FileInfo aAPCSRFile, string sheetName)
+{
+    string outputFilePath = string.Empty;
+    XSSFWorkbook workbook = null;
+    try
+    {
+        string sourceFile = aAPCSRFile?.ToString() ?? string.Empty;
+        outputFilePath = Path.Combine(exportDirectory, $"{sheetName}.xlsx");
+
+        if (File.Exists(outputFilePath))
+        {
+            // Open existing workbook
+            using (FileStream fs = new FileStream(outputFilePath, FileMode.Open, FileAccess.Read))
+            {
+                workbook = new XSSFWorkbook(fs);
+            }
+        }
+        else
+        {
+            // Create new workbook
+            workbook = new XSSFWorkbook();
+        }
+
+        ISheet sheet = workbook.GetSheet(sheetName) ?? workbook.CreateSheet(sheetName); // Create or get sheet
+
+        if (!string.IsNullOrEmpty(sourceFile))
+        {
+            AppendDailyPatientSiteCsvData(sourceFile, sheet, workbook, sheetName); // Append data from CSV file into sheet
+        }
+
+        using (FileStream stream = new FileStream(outputFilePath, FileMode.Create, FileAccess.Write)) // Save the workbook to an XLSX file
+        {
+            workbook.Write(stream);
+        }
+
+        Console.WriteLine(sheetName + "...csv file copied to XLSX successfully...");
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+    finally
+    {
+        workbook?.Close();
+    }
+    return outputFilePath;
+}
+
+public void AppendDailyPatientSiteCsvData(string filePath, ISheet sheet, XSSFWorkbook workbook, string sheetName)
+{
+    try
+    {
+        XSSFCellStyle numberStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+        numberStyle.DataFormat = workbook.CreateDataFormat().GetFormat("General");
+
+        XSSFCellStyle dateStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+        dateStyle.DataFormat = workbook.CreateDataFormat().GetFormat("dd-MM-yyyy");
+
+        XSSFCellStyle timeStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+        timeStyle.DataFormat = workbook.CreateDataFormat().GetFormat("hh:mm:ss");
+
+        using (TextFieldParser reader = new TextFieldParser(filePath))
+        {
+            reader.HasFieldsEnclosedInQuotes = true;
+            reader.SetDelimiters("\t");
+
+            int rowIndex = sheet.LastRowNum + 1; // Start appending from the last row
+
+            while (!reader.EndOfData)
+            {
+                var valueLines = reader.ReadFields();
+                if (rowIndex == 0)
+                {
+                    CreateHeaderRow(sheet, numberStyle);
+                    rowIndex++;
+                }
+                else if (int.TryParse(valueLines[0].Split(' ')[0], out _)) // Check if the first part is numeric
+                {
+                    ProcessDataRows(sheet, rowIndex, valueLines, dateStyle, numberStyle, timeStyle);
+                    rowIndex++;
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+        throw;
+    }
+}
+
+
+want to convert output file in .csv format. currently it is in .xlsx format and upload same .csv filt on sharepoint
+
+
+public void ExampleMethod(string filePath)
+{
+    try
+    {
+        string siteUrl = "https://gpslocums.sharepoint.com/sites/PowerBI"; // SharePoint site URL
+        string username = "GPSLOCUMSLTD\\qxserviceaccount"; // SharePoint username
+        string password = "RuthlessMagician2205!";
+
+        SecureString securePassword = new SecureString();
+        foreach (char c in password.ToCharArray())
+            securePassword.AppendChar(c);
+
+        using (ClientContext context = new ClientContext(siteUrl))
+        {
+            // Provide count and credentials for your SharePoint environment
+            context.Credentials = new System.Net.NetworkCredential(username, password);
+
+            // Get the SharePoint web  
+            // string targetFolderUrl = "https://gpslocums-my.sharepoint.com/personal/qxserviceaccount_medsolhealthcare_com/_layouts/15/onedrive.aspx?view=0&id=%2Fpersonal%2Fqxserviceaccount%5Fmedsolhealthcare%5Fcom%2FDocuments%2FTest%20Phone%20BOT%20File";
+            string targetFolderUrl = "https://gpslocums.sharepoint.com/sites/PowerBI/Shared%20Documents/Forms/AllItems/QXTest";
+           // string targetFolderUrl = "https://gpslocums.sharepoint.com/sites/PowerBI/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FPowerBI%2FShared%20Documents%2FQXTest&viewid=52fb9c48%2D0833%2D4303%2Db158%2Dca6357ded496";
+
+            // File details
+            string fileName = Path.GetFileName(filePath);
+            string targetFileUrl = $"{targetFolderUrl}/{fileName}";
+
+            // Read file content
+            byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+
+            // Upload file
+            FileCreationInformation newFile = new FileCreationInformation
+            {
+                Content = fileContent,
+                // Url = fileName,
+                Url = targetFileUrl,
+                Overwrite = true
+            };
+
+            List docs = context.Web.Lists.GetByTitle("Documents");
+            Microsoft.SharePoint.Client.File uploadFile = docs.RootFolder.Files.Add(newFile);
+            context.Load(uploadFile);
+            context.ExecuteQuery();
+
+            Console.WriteLine("File uploaded successfully to SharePoint.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+        // Log the error or handle it as per your application's error handling strategy
+    }
+}
