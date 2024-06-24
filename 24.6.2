@@ -1,0 +1,93 @@
+To handle the issue of duplicate rows being inserted each time the code runs, you need to implement logic that checks if the row already exists in the database before inserting it. You can achieve this by checking for the existence of a row with the same primary key or unique fields. Assuming that the combination of `Date`, `Agent`, `TimesheetOwner`, and `TotalTalkingTime` should be unique, you can perform a check before inserting each row.
+
+Here's how you can modify the code to ensure that only unique rows are inserted:
+
+1. Add a query to check if the row already exists in the database.
+2. Execute this query before performing the insertion.
+
+Here's the updated code:
+
+```csharp
+private void InsertIntoDatabase(string excelFilePath, string sheetName)
+{
+    if (string.IsNullOrEmpty(sheetName))
+    {
+        LogToErrorFile("Sheet name is null or empty.");
+        return;
+    }
+
+    try
+    {
+        using (SqlConnection connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime)
+                                   VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime)";
+
+            string checkExistenceQuery = @"SELECT COUNT(*) FROM OutputFileDetails
+                                           WHERE Date = @Date AND Agent = @Agent AND TimesheetOwner = @TimesheetOwner AND TotalTalkingTime = @TotalTalkingTime";
+
+            using (SqlCommand insertCommand = new SqlCommand(insertQuery, connection))
+            using (SqlCommand checkCommand = new SqlCommand(checkExistenceQuery, connection))
+            {
+                using (var workbook = new XSSFWorkbook(File.Open(excelFilePath, FileMode.Open, FileAccess.Read)))
+                {
+                    ISheet sheet = workbook.GetSheet(sheetName);
+
+                    if (sheet == null)
+                    {
+                        LogToErrorFile($"Sheet '{sheetName}' not found in workbook.");
+                        return;
+                    }
+
+                    for (int i = 1; i <= sheet.LastRowNum; i++)
+                    {
+                        var row = sheet.GetRow(i);
+                        if (row == null)
+                        {
+                            LogToErrorFile($"Row {i} is null.");
+                            continue;
+                        }
+
+                        DateTime date = (DateTime)row.GetCell(0).DateCellValue;
+                        string agent = row.GetCell(1).StringCellValue;
+                        string timesheetOwner = row.GetCell(2).StringCellValue;
+                        string totalTalkingTime = row.GetCell(3).StringCellValue;
+
+                        checkCommand.Parameters.Clear();
+                        checkCommand.Parameters.AddWithValue("@Date", date);
+                        checkCommand.Parameters.AddWithValue("@Agent", agent);
+                        checkCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                        checkCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                        int rowCount = (int)checkCommand.ExecuteScalar();
+
+                        if (rowCount == 0)
+                        {
+                            insertCommand.Parameters.Clear();
+                            insertCommand.Parameters.AddWithValue("@Date", date);
+                            insertCommand.Parameters.AddWithValue("@Agent", agent);
+                            insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                            insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                            insertCommand.ExecuteNonQuery();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+In this updated code:
+
+- Before inserting a row, we use the `checkExistenceQuery` to check if the row already exists in the database.
+- If the row doesn't exist (`rowCount == 0`), we proceed with the insertion.
+- This ensures that only new rows are inserted, preventing duplicate entries.
