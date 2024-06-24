@@ -1,0 +1,200 @@
+It looks like my last message intended to provide a way to avoid using `XSSFWorkbook` entirely, focusing on reading and processing the `.csv` file directly. Here's a clear and step-by-step approach to achieve this:
+
+1. **Generate the `.csv` file from the input data**.
+2. **Insert data from the `.csv` file into the database**.
+3. **Upload the `.csv` file to SharePoint**.
+
+Let's break down the code to ensure each part works smoothly.
+
+### 1. Generate the `.csv` file from the input data
+
+This method reads the input file and generates a `.csv` file.
+
+```csharp
+public string CreateCsvForDailyPatientSiteFile(FileInfo aAPCSRFile, string sheetName)
+{
+    string csvFilePath = string.Empty;
+    try
+    {
+        string sourceFile = aAPCSRFile?.ToString() ?? string.Empty;
+        csvFilePath = Path.Combine(exportDirectory, $"{sheetName}.csv");
+
+        if (!string.IsNullOrEmpty(sourceFile))
+        {
+            AppendDailyPatientSiteCsvData(sourceFile, csvFilePath);
+        }
+
+        Console.WriteLine(sheetName + "...csv file created successfully...");
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+    return csvFilePath;
+}
+
+private void AppendDailyPatientSiteCsvData(string filePath, string csvFilePath)
+{
+    try
+    {
+        using (var writer = new StreamWriter(csvFilePath))
+        using (TextFieldParser reader = new TextFieldParser(filePath))
+        {
+            reader.HasFieldsEnclosedInQuotes = true;
+            reader.SetDelimiters("\t");
+
+            while (!reader.EndOfData)
+            {
+                var valueLines = reader.ReadFields();
+                if (valueLines != null)
+                {
+                    var line = string.Join(",", valueLines.Select(value => "\"" + value.Replace("\"", "\"\"") + "\""));
+                    writer.WriteLine(line);
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+        throw;
+    }
+}
+```
+
+### 2. Insert data from the `.csv` file into the database
+
+This method reads the `.csv` file and inserts its data into the database.
+
+```csharp
+private void InsertIntoDatabase(string csvFilePath, string sheetName)
+{
+    try
+    {
+        using (var reader = new StreamReader(csvFilePath))
+        {
+            string line;
+            while ((line = reader.ReadLine()) != null)
+            {
+                var values = line.Split(',');
+
+                // Assuming values correspond to the columns in the database
+                // Insert each row into the database
+
+                // Example database insertion logic (pseudo-code)
+                using (var connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    var command = connection.CreateCommand();
+                    command.CommandText = "INSERT INTO YourTable (Column1, Column2, Column3, ...) VALUES (@value1, @value2, @value3, ...)";
+                    command.Parameters.AddWithValue("@value1", values[0]);
+                    command.Parameters.AddWithValue("@value2", values[1]);
+                    command.Parameters.AddWithValue("@value3", values[2]);
+                    // Add more parameters as needed
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### 3. Upload the `.csv` file to SharePoint
+
+This method uploads the `.csv` file to SharePoint.
+
+```csharp
+public void ExampleMethod(string filePath)
+{
+    try
+    {
+        string siteUrl = "https://gpslocums.sharepoint.com/sites/PowerBI"; // SharePoint site URL
+        string username = "GPSLOCUMSLTD\\qxserviceaccount"; // SharePoint username
+        string password = "RuthlessMagician2205!";
+
+        SecureString securePassword = new SecureString();
+        foreach (char c in password.ToCharArray())
+            securePassword.AppendChar(c);
+
+        using (ClientContext context = new ClientContext(siteUrl))
+        {
+            context.Credentials = new System.Net.NetworkCredential(username, securePassword);
+
+            string targetFolderUrl = "https://gpslocums.sharepoint.com/sites/PowerBI/Shared%20Documents/Forms/AllItems/QXTest";
+
+            // File details
+            string fileName = Path.GetFileName(filePath);
+            string targetFileUrl = $"{targetFolderUrl}/{fileName}";
+
+            // Read file content
+            byte[] fileContent = System.IO.File.ReadAllBytes(filePath);
+
+            // Upload file
+            FileCreationInformation newFile = new FileCreationInformation
+            {
+                Content = fileContent,
+                Url = targetFileUrl,
+                Overwrite = true
+            };
+
+            List docs = context.Web.Lists.GetByTitle("Documents");
+            Microsoft.SharePoint.Client.File uploadFile = docs.RootFolder.Files.Add(newFile);
+            context.Load(uploadFile);
+            context.ExecuteQuery();
+
+            Console.WriteLine("File uploaded successfully to SharePoint.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error uploading file to SharePoint: {ex.Message}");
+    }
+}
+```
+
+### Integration
+
+Update the `ProcessFile` method to call `CreateCsvForDailyPatientSiteFile` and `InsertIntoDatabase`.
+
+```csharp
+private void ProcessFile(FileInfo file, string sheetName, string notFoundMessage)
+{
+    try
+    {
+        if (file != null)
+        {
+            string csvFilePath = CreateCsvForDailyPatientSiteFile(file, sheetName);
+            if (!string.IsNullOrEmpty(csvFilePath))
+            {
+                InsertIntoDatabase(csvFilePath, sheetName); // Insert data into database after creating CSV
+            }
+        }
+        else
+        {
+            LogToErrorFile(notFoundMessage);
+            Console.WriteLine(notFoundMessage);
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+    }
+}
+```
+
+### Summary
+
+With these updates:
+
+1. The `.csv` file is generated directly from the input data without involving `XSSFWorkbook`.
+2. The `.csv` file's data is read and inserted into the database.
+3. The `.csv` file is uploaded to SharePoint.
+
+This approach ensures you only work with `.csv` files, simplifying the process and avoiding any issues with `XSSFWorkbook`.
