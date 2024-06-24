@@ -1,0 +1,108 @@
+To refactor the `InsertIntoDatabase` method to work with a `.csv` file instead of an Excel file, you'll need to:
+
+1. **Read the `.csv` file line by line.**
+2. **Parse each line to get the necessary data.**
+3. **Check if the row exists in the database.**
+4. **Insert the row if it doesn't exist.**
+
+Here is how you can do it:
+
+```csharp
+private void InsertIntoDatabase(string csvFilePath, string sheetName)
+{
+    if (string.IsNullOrEmpty(sheetName))
+    {
+        LogToErrorFile("Sheet name is null or empty.");
+        return;
+    }
+
+    try
+    {
+        using (SqlConnection connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime)
+                                   VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime)";
+
+            string checkExistenceQuery = @"SELECT COUNT(*) FROM OutputFileDetails
+                                           WHERE Date = @Date AND Agent = @Agent AND TimesheetOwner = @TimesheetOwner AND TotalTalkingTime = @TotalTalkingTime";
+
+            using (SqlCommand insertCommand = new SqlCommand(insertQuery, connection))
+            using (SqlCommand checkCommand = new SqlCommand(checkExistenceQuery, connection))
+            {
+                using (var reader = new StreamReader(csvFilePath))
+                {
+                    string line;
+                    bool isFirstLine = true;
+
+                    while ((line = reader.ReadLine()) != null)
+                    {
+                        if (isFirstLine)
+                        {
+                            // Skip the header row
+                            isFirstLine = false;
+                            continue;
+                        }
+
+                        var values = line.Split(',');
+
+                        if (values.Length < 4)
+                        {
+                            LogToErrorFile($"Invalid data format in CSV file at line: {line}");
+                            continue;
+                        }
+
+                        DateTime date;
+                        if (!DateTime.TryParse(values[0], out date))
+                        {
+                            LogToErrorFile($"Invalid date format in CSV file at line: {line}");
+                            continue;
+                        }
+
+                        string agent = values[1];
+                        string timesheetOwner = values[2];
+                        string totalTalkingTime = values[3];
+
+                        checkCommand.Parameters.Clear();
+                        checkCommand.Parameters.AddWithValue("@Date", date);
+                        checkCommand.Parameters.AddWithValue("@Agent", agent);
+                        checkCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                        checkCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                        int rowCount = (int)checkCommand.ExecuteScalar();
+
+                        if (rowCount == 0)
+                        {
+                            insertCommand.Parameters.Clear();
+                            insertCommand.Parameters.AddWithValue("@Date", date);
+                            insertCommand.Parameters.AddWithValue("@Agent", agent);
+                            insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                            insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                            insertCommand.ExecuteNonQuery();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### Summary of Changes:
+1. **Read CSV File:** Use a `StreamReader` to read the `.csv` file line by line.
+2. **Parse CSV Data:** Use `Split(',')` to parse each line of the CSV file into the required fields.
+3. **Database Operations:** Use parameterized SQL commands to check for the existence of a row and insert it if it doesn't exist.
+
+### Important Considerations:
+- **CSV Format Assumptions:** This code assumes the CSV format is consistent and each line contains at least four columns corresponding to `Date`, `Agent`, `TimesheetOwner`, and `TotalTalkingTime`.
+- **Error Handling:** The code logs errors for invalid data formats, ensuring the application does not crash due to unexpected CSV content.
+- **Security:** The SQL commands use parameters to protect against SQL injection attacks. 
+
+By applying these changes, the process will handle CSV files directly and simplify the workflow by eliminating the need for `XSSFWorkbook`.
