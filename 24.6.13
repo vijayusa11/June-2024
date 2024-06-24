@@ -1,0 +1,179 @@
+Creating a CSV file is fundamentally different from creating an XLSX file because CSV files are plain text files without any formatting, whereas XLSX files are binary files with rich formatting options. When working with CSV files, you don't have to worry about cell styles like `XSSFCellStyle`. You simply write the data directly to the file.
+
+Here’s how you can adjust your code to handle CSV file creation and appending, keeping the logic similar to your original methods but without the Excel-specific constructs:
+
+### Step-by-Step Changes
+
+1. **Create and Open a CSV File for Writing:**
+   - Instead of creating an `XSSFWorkbook`, you will use a `StreamWriter` to write directly to the CSV file.
+
+2. **Remove Cell Styles:**
+   - CSV files do not support cell styles. All data will be written as plain text.
+
+3. **Write Data to the CSV File:**
+   - Write headers and data rows directly to the CSV file.
+
+### Updated Code
+
+Here is the updated version of your methods to create and manipulate a CSV file:
+
+#### `ProcessFile` Method
+
+```csharp
+private void ProcessFile(FileInfo file, string sheetName, string notFoundMessage)
+{
+    try
+    {
+        if (file != null)
+        {
+            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file.Name);
+            if (fileNameWithoutExtension.Contains("Global"))
+            {
+                dailyActivitySheetName = fileNameWithoutExtension;
+                sheetName = "Call Stats Template";
+            }
+
+            if (!string.IsNullOrEmpty(sheetName) && sheetName.ToUpper().Contains(sheetName.ToUpper()))
+            {
+                string outputFilePath = CreateCsvForDailyPatientSiteFile(file, sheetName);
+                if (!string.IsNullOrEmpty(outputFilePath))
+                {
+                    InsertIntoDatabase(outputFilePath, sheetName); // Insert data into database after creating CSV
+                }
+            }
+        }
+        else
+        {
+            LogToErrorFile(notFoundMessage);
+            Console.WriteLine(notFoundMessage);
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+    }
+}
+```
+
+#### `CreateCsvForDailyPatientSiteFile` Method
+
+```csharp
+public string CreateCsvForDailyPatientSiteFile(FileInfo aAPCSRFile, string sheetName)
+{
+    string outputFilePath = string.Empty;
+    try
+    {
+        string sourceFile = aAPCSRFile?.ToString() ?? string.Empty;
+        outputFilePath = Path.Combine(exportDirectory, $"{sheetName}.csv");
+
+        using (StreamWriter writer = new StreamWriter(outputFilePath, true)) // Append mode
+        {
+            if (!string.IsNullOrEmpty(sourceFile))
+            {
+                AppendDailyPatientSiteCsvData(sourceFile, writer); // Append data from CSV file into CSV file
+            }
+        }
+
+        Console.WriteLine(sheetName + "...csv file copied successfully...");
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+    return outputFilePath;
+}
+```
+
+#### `AppendDailyPatientSiteCsvData` Method
+
+```csharp
+public void AppendDailyPatientSiteCsvData(string filePath, StreamWriter writer)
+{
+    try
+    {
+        using (TextFieldParser reader = new TextFieldParser(filePath))
+        {
+            reader.HasFieldsEnclosedInQuotes = true;
+            reader.SetDelimiters("\t");
+
+            bool headerCreated = writer.BaseStream.Length > 0; // Check if the CSV file already has content
+
+            while (!reader.EndOfData)
+            {
+                var valueLines = reader.ReadFields();
+                if (!headerCreated)
+                {
+                    CreateHeaderRow(writer);
+                    headerCreated = true;
+                }
+                else if (int.TryParse(valueLines[0].Split(' ')[0], out _)) // Check if the first part is numeric
+                {
+                    ProcessDataRows(writer, valueLines);
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+        throw;
+    }
+}
+```
+
+#### `CreateHeaderRow` Method
+
+```csharp
+void CreateHeaderRow(StreamWriter writer)
+{
+    try
+    {
+        // Define the headers
+        string[] headers = { "Date", "Agent", "TimesheetOwner", "Total Talking time" };
+
+        // Write headers to the CSV file
+        writer.WriteLine(string.Join(",", headers));
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+#### `ProcessDataRows` Method
+
+```csharp
+void ProcessDataRows(StreamWriter writer, string[] valueLines)
+{
+    try
+    {
+        // Write data rows to the CSV file
+        writer.WriteLine(string.Join(",", valueLines));
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### Explanation:
+
+1. **Using StreamWriter:**
+   - This replaces the `XSSFWorkbook` and `ISheet` with `StreamWriter` to handle file writing.
+
+2. **Writing Data:**
+   - The data is written directly to the CSV file using `StreamWriter.WriteLine`.
+
+3. **Handling Headers:**
+   - Headers are written only if the file is being created for the first time.
+
+4. **CSV Specifics:**
+   - There are no cell styles or formatting options in CSV. All data is plain text, separated by commas.
+
+This approach simplifies the code, focusing on writing plain text data to CSV files without worrying about styles and formats specific to Excel files.
