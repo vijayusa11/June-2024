@@ -1,0 +1,10 @@
+<add key="ImportFilePathDatabase" value="C:\Users\vijaychoudhary\Downloads\InputFolder\GlobalCallstats0406 (2)22.csv" />
+
+public static string? ImportFilePathDatabase = Convert.ToString(ConfigurationManager.AppSettings["ImportFilePathDatabase"]);
+
+InsertIntoDatabase(ImportFilePathDatabase);
+
+i want to take make a condition that it will take filename dynamically where filename have "Global" key word and that file path with file name 
+will pass into InsertIntoDatabase method
+
+.net core 6.0
