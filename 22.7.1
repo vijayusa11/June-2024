@@ -1,0 +1,54 @@
+Sure, if you want to achieve this without using app settings, you can hardcode the directory path and implement the same logic. Here's how you can do it:
+
+```csharp
+using System;
+using System.IO;
+using System.Linq;
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Hardcoded directory path
+        string importDirectoryPath = @"C:\Users\vijaychoudhary\Downloads\InputFolder";
+
+        // Find the file with "Global" in its name
+        string filePath = GetFilePath(importDirectoryPath, "Global");
+
+        // Call the method with the file path
+        InsertIntoDatabase(filePath);
+    }
+
+    public static string GetFilePath(string directoryPath, string keyword)
+    {
+        if (Directory.Exists(directoryPath))
+        {
+            var files = Directory.GetFiles(directoryPath, $"*{keyword}*");
+            if (files.Length > 0)
+            {
+                return files.First(); // Return the first match
+            }
+        }
+        throw new FileNotFoundException($"No file containing the keyword '{keyword}' was found in the directory '{directoryPath}'.");
+    }
+
+    public static void InsertIntoDatabase(string filePath)
+    {
+        // Your logic to insert data into the database using the file path
+        Console.WriteLine($"Inserting data from file: {filePath}");
+    }
+}
+```
+
+### Explanation:
+1. **Hardcoded Directory Path**:
+   - The `importDirectoryPath` variable is hardcoded with the path to the directory where your files are located.
+
+2. **GetFilePath Method**:
+   - This method takes the directory path and a keyword as arguments.
+   - It searches for files containing the keyword in their names and returns the first match found.
+
+3. **InsertIntoDatabase Method**:
+   - This is your method that processes the file. In the example, it simply prints the file path.
+
+This code should work as required without the need for app settings, ensuring that you dynamically find the file with "Global" in its name and pass its path to your method for further processing.
