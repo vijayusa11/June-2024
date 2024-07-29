@@ -1,0 +1,71 @@
+To ensure the `if` condition can handle multiple `selectedEmpIds` correctly, you should first check if the `selectedEmpIds` parameter contains multiple IDs by looking for a comma. If it does, you can process each ID separately. Here's an updated version of your code to handle this:
+
+```csharp
+public JsonResult GetSelectedEmployeeEmail(string IDS, string selectedEmpIds)
+{
+    string strResult = string.Empty;
+    BLTimesheetProcess oBLTimesheetProcess = new BLTimesheetProcess();
+    try
+    {
+        if (!string.IsNullOrEmpty(selectedEmpIds) && string.IsNullOrEmpty(IDS))
+        {
+            BLEmployees objemp = new BLEmployees();
+            var selectedEmpIdsList = selectedEmpIds.Split(',');
+
+            foreach (var empIdStr in selectedEmpIdsList)
+            {
+                if (int.TryParse(empIdStr.Trim(), out int empId))
+                {
+                    var emplo = objemp.SelectEmployee(empId);
+                    if (emplo != null && !string.IsNullOrEmpty(emplo.EmailAddress))
+                    {
+                        if (string.IsNullOrEmpty(strResult))
+                        {
+                            strResult = emplo.EmailAddress;
+                        }
+                        else
+                        {
+                            strResult = strResult + "," + emplo.EmailAddress;
+                        }
+                    }
+                }
+                else
+                {
+                    throw new Exception("Invalid employee ID format.");
+                }
+            }
+        }
+        else
+        {
+            var emailList = oBLTimesheetProcess.GetSelectedEmployeeEmail(IDS);
+            foreach (var email in emailList)
+            {
+                if (!string.IsNullOrEmpty(email.Email))
+                {
+                    if (string.IsNullOrEmpty(strResult))
+                    {
+                        strResult = email.Email;
+                    }
+                    else
+                    {
+                        strResult = strResult + "," + email.Email;
+                    }
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        strResult = "error: " + ex.Message;
+    }
+    return Json(strResult, JsonRequestBehavior.AllowGet);
+}
+```
+
+### Changes and Additions:
+1. **Check for Multiple IDs**: The code splits `selectedEmpIds` using `Split(',')`, handling multiple IDs.
+2. **TryParse for Safety**: Uses `int.TryParse` to safely convert each ID to an integer, ensuring the format is valid.
+3. **Error Handling**: If `int.TryParse` fails, an exception is thrown with a specific message about the invalid format.
+4. **Additional Error Information**: The catch block now includes the exception message in the error response.
+
+This should resolve the exception by properly handling and validating each ID in `selectedEmpIds`.
