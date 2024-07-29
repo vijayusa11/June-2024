@@ -1,0 +1,82 @@
+If the exception is still occurring at the `if` condition, let's ensure that we handle the empty and null checks correctly and also process the employee IDs properly. Here's a more detailed version of the code with additional logging and validation:
+
+```csharp
+public JsonResult GetSelectedEmployeeEmail(string IDS, string selectedEmpIds)
+{
+    string strResult = string.Empty;
+    BLTimesheetProcess oBLTimesheetProcess = new BLTimesheetProcess();
+    try
+    {
+        if (!string.IsNullOrEmpty(selectedEmpIds) && string.IsNullOrEmpty(IDS))
+        {
+            BLEmployees objemp = new BLEmployees();
+            var selectedEmpIdsList = selectedEmpIds.Split(',');
+
+            foreach (var empIdStr in selectedEmpIdsList)
+            {
+                if (int.TryParse(empIdStr.Trim(), out int empId))
+                {
+                    var emplo = objemp.SelectEmployee(empId);
+                    if (emplo != null && !string.IsNullOrEmpty(emplo.EmailAddress))
+                    {
+                        if (string.IsNullOrEmpty(strResult))
+                        {
+                            strResult = emplo.EmailAddress;
+                        }
+                        else
+                        {
+                            strResult = strResult + "," + emplo.EmailAddress;
+                        }
+                    }
+                    else
+                    {
+                        // Log or handle case where employee is not found or email is empty
+                        throw new Exception($"Employee not found or email is empty for ID: {empId}");
+                    }
+                }
+                else
+                {
+                    // Log or handle invalid ID format
+                    throw new Exception($"Invalid employee ID format: {empIdStr}");
+                }
+            }
+        }
+        else if (!string.IsNullOrEmpty(IDS))
+        {
+            var emailList = oBLTimesheetProcess.GetSelectedEmployeeEmail(IDS);
+            foreach (var email in emailList)
+            {
+                if (!string.IsNullOrEmpty(email.Email))
+                {
+                    if (string.IsNullOrEmpty(strResult))
+                    {
+                        strResult = email.Email;
+                    }
+                    else
+                    {
+                        strResult = strResult + "," + email.Email;
+                    }
+                }
+            }
+        }
+        else
+        {
+            throw new Exception("Both selectedEmpIds and IDS are empty.");
+        }
+    }
+    catch (Exception ex)
+    {
+        strResult = "error: " + ex.Message;
+    }
+    return Json(strResult, JsonRequestBehavior.AllowGet);
+}
+```
+
+### Additional Improvements:
+1. **Handling Empty `selectedEmpIds` and `IDS`**: Added an `else if` block to handle the case where both `selectedEmpIds` and `IDS` are empty, throwing an exception with a clear message.
+2. **Detailed Logging/Handling**: Added detailed exception messages for:
+   - Invalid ID format.
+   - Employee not found or email being empty for a valid ID.
+3. **Clear Error Messages**: The catch block now captures and returns detailed error messages to help debug any issues.
+
+These adjustments should help identify the exact cause of the exception by providing more specific error messages and handling edge cases more thoroughly.
