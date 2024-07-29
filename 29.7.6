@@ -1,0 +1,61 @@
+To handle multiple `selectedEmpIds` from the parameter, you need to modify the code to process each ID individually and then concatenate the results. Here is how you can update your method:
+
+```csharp
+public JsonResult GetSelectedEmployeeEmail(string IDS, string selectedEmpIds)
+{
+    string strResult = string.Empty;
+    BLTimesheetProcess oBLTimesheetProcess = new BLTimesheetProcess();
+    try
+    {
+        if (!string.IsNullOrEmpty(selectedEmpIds) && string.IsNullOrEmpty(IDS))
+        {
+            BLEmployees objemp = new BLEmployees();
+            var selectedEmpIdsList = selectedEmpIds.Split(',');
+
+            foreach (var empId in selectedEmpIdsList)
+            {
+                var emplo = objemp.SelectEmployee(Convert.ToInt32(empId.Trim()));
+                if (emplo != null)
+                {
+                    if (string.IsNullOrEmpty(strResult))
+                    {
+                        strResult = emplo.EmailAddress;
+                    }
+                    else
+                    {
+                        strResult = strResult + "," + emplo.EmailAddress;
+                    }
+                }
+            }
+        }
+        else
+        {
+            var emailList = oBLTimesheetProcess.GetSelectedEmployeeEmail(IDS);
+            foreach (var email in emailList)
+            {
+                if (!string.IsNullOrEmpty(email.Email))
+                {
+                    if (string.IsNullOrEmpty(strResult))
+                    {
+                        strResult = email.Email;
+                    }
+                    else
+                    {
+                        strResult = strResult + "," + email.Email;
+                    }
+                }
+            }
+        }
+    }
+    catch
+    {
+        strResult = "error";
+    }
+    return Json(strResult, JsonRequestBehavior.AllowGet);
+}
+```
+
+### Explanation:
+1. **Splitting `selectedEmpIds`**: The `selectedEmpIds` string is split into an array using `Split(',')` which handles multiple IDs separated by commas.
+2. **Processing Each ID**: Each ID is then processed individually within a `foreach` loop. Inside the loop, each ID is converted to an integer and passed to the `SelectEmployee` method.
+3. **Concatenating Results**: The email addresses are concatenated to the `strResult` string. If `strResult` is empty, the first email is added directly; otherwise, subsequent emails are appended with a comma separator.
