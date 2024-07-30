@@ -1,0 +1,14 @@
+if 
+oEnitity.PracticeName == "CPPE" then 
+strreturn = strreturn + "					<td>" + Convert.ToDateTime(oEnitity.AllDates).ToString("dd/MM/yyyy") + "</td>" + Environment.NewLine;
+
+else if
+oEnitity.PracticeName != "CPPE" and oEnitity.RotaDate != null
+strreturn = strreturn + "<td>" + Convert.ToDateTime(oEnitity.RotaDate).ToString("dd/MM/yyyy") + "</td>" + Environment.NewLine;
+
+else 
+strreturn = strreturn + "<td>" + string.Empty + "</td>" + Environment.NewLine;
+
+.net framework 4.7
+
+write me syntax for if else
