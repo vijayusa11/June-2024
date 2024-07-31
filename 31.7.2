@@ -1,0 +1,127 @@
+To optimize this query for SQL Server, consider the following steps:
+
+1. **Indexing**: Ensure that appropriate indexes are created on columns frequently used in JOINs, WHERE clauses, and ORDER BY clauses. This includes `EmailProcessId`, `ParentEmailProcessId`, `EmailDate`, `DepartmentId`, `CompanyId`, and `FolderId`.
+
+2. **Reducing Subqueries**: Subqueries, especially in SELECT and CASE statements, can be expensive. Replace them with JOINs where possible.
+
+3. **Common Table Expressions (CTEs)**: Using CTEs can simplify the query, but they may not always improve performance. Consider temporary tables if the data set is large.
+
+4. **NOLOCK Hint**: Be cautious with `NOLOCK` as it can lead to dirty reads. Ensure this is appropriate for your use case.
+
+5. **Avoid Scalar Functions in SELECT**: Scalar functions like `[dbo].[EmailProcess_GetLatestData]` in the SELECT clause can be performance bottlenecks. Consider inlining these functions or refactoring them.
+
+Here's a revised version of your query with some optimizations:
+
+```sql
+-- Ensure appropriate indexes on used columns, particularly in JOIN and WHERE clauses.
+
+WITH EmailProcessEntities AS (
+    SELECT 
+        ROW_NUMBER() OVER (ORDER BY veps.EmailDate DESC) AS ROW,
+        EP.DepartmentName,
+        EP.CompanyName,
+        EP.FolderName,
+        EP.EmailProcessId,
+        EP.ParentEmailProcessId,
+        CASE 
+            WHEN EP.IsDraftEmail = 1 AND EXISTS (
+                SELECT 1 
+                FROM dbo.EmailProcessSent WITH(NOLOCK) 
+                WHERE ParentEmailProcessId = EP.EmailProcessId
+            ) THEN (
+                SELECT TOP 1 EmailProcessSentId 
+                FROM dbo.EmailProcessSent WITH(NOLOCK) 
+                WHERE ParentEmailProcessId = EP.EmailProcessId 
+                ORDER BY EmailDate DESC
+            )
+            ELSE CAST([dbo].[EmailProcess_GetLatestData](EP.EmailProcessId, 4) AS UNIQUEIDENTIFIER) 
+        END AS LastEmailProcessId,
+        CASE 
+            WHEN EP.IsLocked = 1 THEN 'Yes'
+            ELSE 'No'
+        END AS IsLocked,
+        veps.EmailDate,
+        '' AS CreatedDate,
+        ISNULL((
+            SELECT COUNT(TicketNoteId) 
+            FROM dbo.TicketInternalNotes WITH(NOLOCK) 
+            WHERE EmailProcessSentId IN (
+                SELECT EmailProcessId 
+                FROM dbo.EmailProcess WITH(NOLOCK) 
+                WHERE EmailProcessId = EP.EmailProcessId 
+                   OR ParentEmailProcessId = EP.EmailProcessId 
+                UNION ALL 
+                SELECT EmailProcessSentId AS EmailProcessId 
+                FROM dbo.EmailProcessSent WITH(NOLOCK) 
+                WHERE ParentEmailProcessId = EP.EmailProcessId
+            )
+        ), 0) AS NoteCount,
+        ISNULL(T.TagColor, '') AS TagColor,
+        [dbo].[EmailProcess_GetLatestData](EP.EmailProcessId, 3) AS FROMEmail,
+        [dbo].[EmailProcess_GetLatestData](EP.EmailProcessId, 2) AS EmailSubject,
+        CAST(ISNULL(EP.AttachmentCount, 0) AS VARCHAR) AS AttachmentCount,
+        EP.TicketNumber,
+        '-' + ISNULL(EP.AssignedToName, '') AS AssignedTo,
+        CASE 
+            WHEN EP.IsRead = 1 THEN 'Yes'
+            ELSE 'No'
+        END AS IsRead,
+        ISNULL(EP.IsReplied, 0) AS IsReplied,
+        CASE 
+            WHEN UPPER(EP.PriorityName) IN ('HIGH', 'URGENT') THEN 1
+            ELSE 0
+        END AS IsHighPriority,
+        '' AS AssignedDate,
+        (SELECT COUNT(ParentEmailProcessId) 
+         FROM dbo.EmailProcess WITH(NOLOCK) 
+         WHERE ParentEmailProcessId = EP.EmailProcessID) AS ParentEmailProcessCount,
+        EP.ConfigurationId,
+        1 AS AccessFlag,
+        0 AS TotalRows,
+        ISNULL(EP.IsMailSent, 1) AS IsMailSent,
+        CAST(CASE 
+            WHEN EP.IsDraftEmail = 1 THEN 1
+            ELSE 0
+        END AS BIT) AS IsDraftEmail,
+        EP.DepartmentId,
+        EP.CompanyId
+    FROM dbo.EmailProcess WITH(NOLOCK) AS EP
+    LEFT JOIN dbo.Tag WITH(NOLOCK) AS T ON T.TagID = EP.TagID
+    INNER JOIN dbo.UserCompanyMapping WITH(NOLOCK) AS UC ON EP.CompanyId = UC.CompanyId 
+                                                       AND EP.DepartmentId = UC.DepartmentId 
+                                                       AND UC.UserProfileId = '245D434A-321D-4497-B13D-0000369E17A4'
+    INNER JOIN dbo.EmailProcess_EmailDate AS veps ON veps.EmailProcessId = ISNULL(EP.ParentEmailProcessId, EP.EmailProcessId)
+    WHERE EP.DepartmentId = 'A088D917-C242-46EE-AD1C-C5F76A6FAC62'
+      AND EP.CompanyId IN ('FB2C12C7-F85F-4A12-8A93-9B822DA42209')
+      AND EP.FolderId = '48CD7973-3C0F-44AF-8F4B-3941ADF6DB45'
+      AND EP.ParentEmailProcessId IS NULL
+)
+SELECT 
+    EmailProcessId,
+    ParentEmailProcessId,
+    LastEmailProcessId,
+    FROMEmail,
+    EmailSubject,
+    CAST(EmailDate AS NVARCHAR(100)) AS EmailDate,
+    AttachmentCount,
+    '' AS CreatedDate,
+    TicketNumber,
+    CASE 
+        WHEN ParentEmailProcessCount > 0 THEN '1'
+        ELSE '0'
+    END AS IsEmailReplyReceived,
+    IsMailSent,
+    AssignedTo,
+    AssignedDate,
+    1 AS IsAccess,
+    '' AS Location,
+    CAST((SELECT [dbo].[GetSLA](ConfigurationId, EmailProcessId)) AS VARCHAR(MAX)) AS SLA,
+    IsLocked
+FROM EmailProcessEntities;
+```
+
+**Further Suggestions:**
+- Analyze execution plans to identify bottlenecks.
+- Ensure statistics are up-to-date using `UPDATE STATISTICS`.
+- Consider breaking down complex parts of the query into smaller chunks or temporary tables for intermediate results.
+- Limit the number of rows processed initially if possible, and paginate results.
