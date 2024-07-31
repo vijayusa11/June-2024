@@ -1,0 +1,35 @@
+optimize below query for SQL SERVER database its taking too long time to execute and geerate data
+
+
+WITH EmailProcessEntities As (SELECT ROW_NUMBER() OVER (ORDER BY  CAST(EmailDate AS DATETIME) DESC  ) As ROW,t.* FROM (SELECT CAST('NA' AS VARCHAR) AS SLA, EP.DepartmentName, EP.CompanyName, EP.FolderName, EP.EmailProcessId AS EmailProcessId,EP.ParentEmailProcessId AS ParentEmailProcessId,  CASE WHEN EP.IsDraftEmail = 1 AND EXISTS(SELECT 1 EmailProcessSentId from dbo.EmailProcessSent with(nolock) where ParentEmailProcessId = EP.EmailProcessId)
+	 then ( SELECT Top 1 EmailProcessSentId from dbo.EmailProcessSent with(nolock) where ParentEmailProcessId = EP.EmailProcessId order by emaildate desc) ELSE CAST([dbo].[EmailProcess_GetLatestData](EP.EmailProcessId,4) AS UNIQUEIDENTIFIER) END AS LastEmailProcessId,
+	 CASE WHEN EP.IsLocked = 1 THEN 'Yes'ELSE 'No'END AS IsLocked, 
+   veps.emaildate AS EmailDate,        
+  '' AS CreatedDate,ISNULL((SELECT COUNT(TicketNoteId) FROM dbo.TicketInternalNotes with(nolock) WHERE EmailProcessSentId IN (SELECT EmailProcessId FROM dbo.EmailProcess(NOLOCK) WHERE EmailProcessId = EP.EmailProcessId        
+   OR ParentEmailProcessId = EP.EmailProcessId UNION ALL SELECT EmailProcessSentId AS EmailProcessId FROM dbo.EmailProcessSent(NOLOCK)         
+   WHERE ParentEmailProcessId = EP.EmailProcessId)),0) AS NoteCount,ISNULL(T.TagColor,'') AS TagColor,  [dbo].[EmailProcess_GetLatestData](EP.EmailProcessId,3) AS FROMEmail,[dbo].[EmailProcess_GetLatestData](EP.EmailProcessId,2) AS EmailSubject, Cast(ISNULL(EP.AttachmentCount,0) AS VARCHAR) AS AttachmentCount,          
+                                 EP.TicketNumber AS TicketNumber,          
+                                 '-' + ISNULL(EP.AssignedToName,'')  AS AssignedTo,          
+                                 CASE WHEN EP.IsRead = 1 THEN 'Yes' ELSE 'No' END AS IsRead,          
+         ISNULL(EP.IsReplied,0) AS IsReplied,          
+         CASE WHEN UPPER(EP.PriorityName) IN ('HIGH','URGENT') THEN 1 ELSE 0 END AS IsHighPriority,           
+                                 '' AS AssignedDate, (SELECT COUNT(ParentEmailProcessId) FROM dbo.EmailProcess(NOLOCK) WHERE ParentEmailProcessId = EP.EmailProcessID) AS ParentEmailProcessCount, EP.ConfigurationId AS ConfigurationId,1 AS AccessFlag, 0 AS TotalRows ,ISNULL(EP.IsMailSent,1) AS IsMailSent, CAST(CASE WHEN (EP.IsDraftEmail = 1) THEN 1 ELSE 0 END AS BIT) AS IsDraftEmail , EP.DepartmentId,EP.CompanyId FROM dbo.EmailProcess (NOLOCK) AS EP           
+           LEFT JOIN dbo.Tag AS T  with(nolock) ON T.TagID = EP.TagID          
+           INNER  JOIN dbo.UserCompanyMapping(NOLOCK) UC ON EP.CompanyId=UC.COmpanyId AND Ep.DepartmentId=UC.DepartmentId AND Uc.UserProfileId='245D434A-321D-4497-B13D-0000369E17A4' inner join [dbo].[emailprocess_emaildate] veps on veps.emailprocessid = ISNULL(ep.ParentemailProcessid,ep.Emailprocessid) WHERE 1=1  AND EP.DepartmentId = 'A088D917-C242-46EE-AD1C-C5F76A6FAC62'  AND EP.companyid in ( 'FB2C12C7-F85F-4A12-8A93-9B822DA42209' )   AND EP.FolderId = '48CD7973-3C0F-44AF-8F4B-3941ADF6DB45' AND EP.ParentEmailProcessId IS NULL) t )SELECT          
+                     EmailProcessId,          
+      ParentEmailProcessId,          
+      LastEmailProcessId,          
+      FROMEmail,          
+      EmailSubject,          
+      CAST(EmailDate AS NVARCHAR(100)) AS EmailDate,            
+     --[dbo].[EmailProcess_GetLatestData](EmailProcessId,3) AS FROMEmail,          
+     --[dbo].[EmailProcess_GetLatestData](EmailProcessId,2) AS EmailSubject,          
+     --[dbo].[EmailProcess_GetLatestData](EmailProcessId,1) AS EmailDate,          
+     AttachmentCount,          
+     '' AS CreatedDate,          
+     TicketNumber,          
+                 CASE WHEN ParentEmailProcessCount > 0 THEN '1' ELSE '0' END AS IsEmailReplyReceived,          
+     IsMailSent,          
+     AssignedTo,          
+     AssignedDate,          
+     1 AS IsAccess, '' AS  Location, CAST((SELECT [dbo].[GetSLA](ConfigurationId,EmailProcessId)) AS VARCHAR(MAX)) AS SLA,IsLocke
