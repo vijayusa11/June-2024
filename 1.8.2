@@ -1,0 +1,27 @@
+To make the button smaller and add rounded corners, you can adjust the CSS. You can add inline styles directly to the button, or, preferably, use a separate CSS class. Here's how you can modify your button with inline styles:
+
+```html
+<button class="btn btn-xs" id="btnRed" name="btnRed" style="background-color: red; color: white; padding: 5px 10px; border-radius: 10px;">
+    Sickness
+</button>
+```
+
+Alternatively, you can define a CSS class and apply it to your button:
+
+```html
+<style>
+    .custom-btn {
+        background-color: red;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 10px;
+        font-size: 12px; /* Adjust the font size as needed */
+    }
+</style>
+
+<button class="btn btn-xs custom-btn" id="btnRed" name="btnRed">
+    Sickness
+</button>
+```
+
+This approach keeps your HTML cleaner and separates your styles from your markup.
