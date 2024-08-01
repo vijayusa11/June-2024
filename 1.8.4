@@ -1,0 +1,15 @@
+You can add a tooltip to the SVG icon by wrapping it in a `<div>` or `<span>` and using the `title` attribute. Here's how you can modify your code to include the tooltip:
+
+```csharp
+if (oEnitity.TotalHours != oEnitity.RotaTotalHours)
+{
+    string tooltip = $"Rota Hours = {oEnitity.RotaTotalHours}, Total Hours = {oEnitity.TotalHours}";
+    strreturn = strreturn + "<td align='center'>" +
+                $"<span title='{tooltip}'><svg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>" +
+                "<path d='M1 21H23L12 2L1 21Z' fill='orange'/>" +
+                "<path d='M13 16H11V14H13V16ZM13 12H11V9H13V12Z' fill='black'/>" +
+                "</svg></span> " + oEnitity.TotalHours + "</td>" + Environment.NewLine;
+}
+```
+
+In this modified code, the `title` attribute of the `<span>` element provides the tooltip text. When the user hovers over the SVG icon, the tooltip displaying the `Rota Hours` and `Total Hours` will appear.
