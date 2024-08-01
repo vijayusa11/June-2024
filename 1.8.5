@@ -1,0 +1,16 @@
+Here is the updated inline HTML code with a tooltip, using the `title` attribute to ensure simplicity:
+
+```csharp
+if (oEnitity.TotalHours != oEnitity.RotaTotalHours)
+{
+    string tooltip = $"Rota Hours = {oEnitity.RotaTotalHours}, Total Hours = {oEnitity.TotalHours}";
+    strreturn = strreturn + "<td align='center'>" +
+                $"<div title='{tooltip}' style='display:inline-block; cursor:pointer;'>" +
+                "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>" +
+                "<path d='M1 21H23L12 2L1 21Z' fill='orange'/>" +
+                "<path d='M13 16H11V14H13V16ZM13 12H11V9H13V12Z' fill='black'/>" +
+                "</svg></div> " + oEnitity.TotalHours + "</td>" + Environment.NewLine;
+}
+```
+
+In this example, a `div` with a `title` attribute is used to wrap the SVG. The tooltip should appear on hover, displaying the `Rota Hours` and `Total Hours` values. The `style` attribute ensures the `div` displays inline and has a pointer cursor for better user experience.
