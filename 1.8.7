@@ -1,0 +1,158 @@
+how to get count of number of row here -
+strreturn = strreturn + "<input type=\"hidden\" value=\"" + count + "\" id=\"hftotalcount" + TimesheetStatusId + "\" />";
+
+from below code -
+
+
+ if ((IsStatFlag == 1) && (oEnitity.TotalHours != (oEnitity.RotaTotalHours ?? 0)))
+ {
+     if (oEnitity.RotaDate == null || (oEnitity.TotalHours != (oEnitity.RotaTotalHours ?? 0)))
+     {
+         if ((i + 1) % 2 == 0)
+             strRowClass = "odd";
+         else
+             strRowClass = "even";
+         string IsLeaveExist = objBL.IsLeaveExist(oEnitity.AllDates.Value, oEnitity.EmployeeId);
+
+         if (IsLeaveExist == "Annual_PCN")
+             strreturn = strreturn + "                <tr tabindex=\"" + i + "\"  class=\"" + strRowClass + "\" style=\"background-color: #38b01e;\">" + Environment.NewLine;
+         else if (IsLeaveExist == "Annual_Non_PCN")
+             strreturn = strreturn + "                <tr tabindex=\"" + i + "\"  class=\"" + strRowClass + "\" style=\"background-color: #f14ece;\">" + Environment.NewLine;
+         else if (IsLeaveExist == "Training")
+             strreturn = strreturn + "                <tr tabindex=\"" + i + "\"  class=\"" + strRowClass + "\" style=\"background-color: #6c7fe1;\">" + Environment.NewLine;
+         else if (IsLeaveExist == "Sickness")
+             strreturn = strreturn + "                <tr tabindex=\"" + i + "\"  class=\"" + strRowClass + "\" style=\"background-color: #9c96a5;\">" + Environment.NewLine;
+         else
+             strreturn = strreturn + "                <tr tabindex=\"" + i + "\" id=\"" + i + "\"  class=\"" + strRowClass + "\" >" + Environment.NewLine;
+         // Vijay 16
+         if (oEnitity.PracticeName == "CPPE")
+         {
+             if (IsLeaveExist == "Annual_PCN")
+                 strreturn = strreturn + "                <tr tabindex=\"" + i + "\"  class=\"" + strRowClass + "\" style=\"background-color: lightsalmon;\">" + Environment.NewLine;
+             else if (IsLeaveExist == "Annual_Non_PCN")
+                 strreturn = strreturn + "                <tr tabindex=\"" + i + "\"  class=\"" + strRowClass + "\" style=\"background-color: pink;\">" + Environment.NewLine;
+             else if (IsLeaveExist == "Training")
+                 strreturn = strreturn + "                <tr tabindex=\"" + i + "\"  class=\"" + strRowClass + "\" style=\"background-color: orange;\">" + Environment.NewLine;
+             else if (IsLeaveExist == "Sickness")
+             {
+                 strreturn = strreturn + "                <tr tabindex=\"" + i + "\"  class=\"" + strRowClass + "\" style=\"background-color: orangered;\">" + Environment.NewLine;
+             }
+             else
+                 strreturn = strreturn + "                <tr tabindex=\"" + i + "\" id=\"" + i + "\"  class=\"" + strRowClass + "\" >" + Environment.NewLine;
+
+         }
+
+         if (TimesheetStatusId == "0")
+         {
+             strreturn = strreturn + "					<td align='center' ></td>" + Environment.NewLine;
+         }
+         else
+         {
+             if (Convert.ToInt32(TimesheetStatusId) == (int)EnumTimesheetStatuses.Draft && oEnitity.isTimesheetSubmitted == 0)
+             {
+                 strreturn = strreturn + "					<td align='center' ></td>" + Environment.NewLine;
+             }
+             else
+             {
+                 strreturn = strreturn + "					<td align='center' ><input id='chk" + oEnitity.TimesheetId + "' type='checkbox' name='Approve' value='" + oEnitity.TimesheetId + "' /></td>" + Environment.NewLine;
+             }
+         }
+         strreturn = strreturn + "					<td>" + Convert.ToDateTime(oEnitity.AllDates).ToString("dd/MM/yyyy") + "</td>" + Environment.NewLine;
+         strreturn += "<td>" + oEnitity.EmployeeName + "</td>";
+         strreturn = strreturn + "<td>" + oEnitity.ProjectName + "</td>" + Environment.NewLine;
+         strreturn = strreturn + "<td>" + oEnitity.PracticeName + "</td>" + Environment.NewLine;
+
+         if (Convert.ToInt32(TimesheetStatusId) == (int)EnumTimesheetStatuses.Draft)
+         {
+             if (oEnitity.AdditionalHours == 0)
+             {
+                 strreturn = strreturn + "<td align='right' >" + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+                 //strreturn = strreturn + "<td align='right' >" + "&#9888;" + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+                 // strreturn = strreturn + "<td align='right' >" + "<img src='VijayDanger.jpeg' alt='triangle' />" + oEnitity.AdditionalHours + "</td>" + Environment.NewLine;
+
+             }
+             else
+             {
+                 strreturn = strreturn + "<td align='right' ><span class=\"label\" style=\"background-color: #FFA500;\">" + oEnitity.AdditionalHours + "</span></td>" + Environment.NewLine;
+             }
+         }
+
+         //Vijay 15
+         // Vijay 15 Bug 21
+         //if (oEnitity.TotalHours != oEnitity.RotaTotalHours && oEnitity.RotaTotalHours != null)
+         //if (oEnitity.TotalHours != oEnitity.RotaTotalHours)
+         //{
+         //    strreturn = strreturn + "<td align='center' ><svg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M1 21H23L12 2L1 21Z' fill='orange'/><path d='M13 16H11V14H13V16ZM13 12H11V9H13V12Z' fill='black'/></svg> " + oEnitity.TotalHours + "</td>" + Environment.NewLine;
+         //}
+         if (oEnitity.TotalHours != oEnitity.RotaTotalHours)
+         {
+             string tooltipText = $"Rota Hours = {oEnitity.RotaTotalHours}, Total Hours = {oEnitity.TotalHours}";
+             strreturn = strreturn + "<td align='center'>" +
+                         "<div style='position: relative; display: inline-block; cursor: pointer;' " +
+                         "onmouseover=\"this.children[1].style.visibility='visible'; this.children[1].style.opacity='1';\" " +
+                         "onmouseout=\"this.children[1].style.visibility='hidden'; this.children[1].style.opacity='0';\">" +
+                         "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>" +
+                         "<path d='M1 21H23L12 2L1 21Z' fill='orange'/>" +
+                         "<path d='M13 16H11V14H13V16ZM13 12H11V9H13V12Z' fill='black'/>" +
+                         "</svg>" +
+                         $"<span style='visibility: hidden; width: 140px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -70px; opacity: 0; transition: opacity 0.3s;'>{tooltipText}</span>" +
+                         "</div> " + oEnitity.TotalHours + "</td>" + Environment.NewLine;
+         }
+         else
+         {
+             strreturn = strreturn + "<td align='center' >" + oEnitity.TotalHours + "</td>" + Environment.NewLine;
+         }
+
+         strreturn = strreturn + "<td align='right' >" + oEnitity.Rate + "</td>" + Environment.NewLine;
+         strreturn = strreturn + "<td align='right' >" + oEnitity.TotalRate + "</td>" + Environment.NewLine;
+
+         // Vijay 16
+         if (oEnitity.RotaDate != null)
+         {
+             strreturn = strreturn + "<td>" + Convert.ToDateTime(oEnitity.RotaDate).ToString("dd/MM/yyyy") + "</td>" + Environment.NewLine;
+         }
+         else if (oEnitity.RotaDate == null && oEnitity.PracticeName == "CPPE")
+         {
+             strreturn = strreturn + "					<td>" + Convert.ToDateTime(oEnitity.AllDates).ToString("dd/MM/yyyy") + "</td>" + Environment.NewLine;
+
+             //strreturn = strreturn + "<td>" + string.Empty + "</td>" + Environment.NewLine;
+         }
+         else
+         {
+             strreturn = strreturn + "<td>" + string.Empty + "</td>" + Environment.NewLine;
+         }
+
+         // Vijay 16
+         if (oEnitity.PracticeName == "CPPE")
+         {
+             strreturn = strreturn + "<td>" + oEnitity.PracticeName + "</td>" + Environment.NewLine;
+         }
+         else
+         {
+             strreturn = strreturn + "<td>" + oEnitity.RotaPracticeName + "</td>" + Environment.NewLine;
+         }
+
+         // Vijay 16
+         if (oEnitity.PracticeName == "CPPE")
+         {
+             strreturn = strreturn + "<td>" + oEnitity.NoOfDays + "</td>" + Environment.NewLine;
+         }
+         else
+         {
+             strreturn = strreturn + "<td>" + oEnitity.RotaTotalHours + "</td>" + Environment.NewLine;
+         }
+
+         strreturn = strreturn + "<td>" + oEnitity.RotaHoursType + "</td>" + Environment.NewLine;
+         if (oEnitity.RotaHoursType == "Additional Hours")
+         {
+             strreturn = strreturn + "<td align='right' ><span class=\"label\" style=\"background-color: #FFA500;\">" + oEnitity.RotaAdditionalHours + "</span></td>" + Environment.NewLine;
+         }
+         else
+         {
+             strreturn = strreturn + "<td align='right' >" + oEnitity.RotaAdditionalHours + "</td>" + Environment.NewLine;
+         }
+         strreturn = strreturn + "<td align='right' >" + oEnitity.AdditionInfo + "</td>" + Environment.NewLine;
+         strreturn = strreturn + "</tr>" + Environment.NewLine;
+         i += 1;
+     }
+ }
