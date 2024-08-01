@@ -1,0 +1,37 @@
+If the `title` attribute is not working as expected, you can use an inline approach with CSS to ensure the tooltip appears correctly. Here's the updated C# code with inline CSS for a custom tooltip:
+
+```csharp
+if (oEnitity.TotalHours != oEnitity.RotaTotalHours)
+{
+    string tooltipText = $"Rota Hours = {oEnitity.RotaTotalHours}, Total Hours = {oEnitity.TotalHours}";
+    strreturn = strreturn + "<td align='center'>" +
+                "<div style='position: relative; display: inline-block; cursor: pointer;'>" +
+                $"<svg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>" +
+                "<path d='M1 21H23L12 2L1 21Z' fill='orange'/>" +
+                "<path d='M13 16H11V14H13V16ZM13 12H11V9H13V12Z' fill='black'/>" +
+                "</svg>" +
+                $"<span style='visibility: hidden; width: 140px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -70px; opacity: 0; transition: opacity 0.3s;'>{tooltipText}</span>" +
+                "</div> " + oEnitity.TotalHours + "</td>" + Environment.NewLine;
+}
+```
+
+To make sure the tooltip becomes visible on hover, you need to add a bit more inline JavaScript. Here's the complete code:
+
+```csharp
+if (oEnitity.TotalHours != oEnitity.RotaTotalHours)
+{
+    string tooltipText = $"Rota Hours = {oEnitity.RotaTotalHours}, Total Hours = {oEnitity.TotalHours}";
+    strreturn = strreturn + "<td align='center'>" +
+                "<div style='position: relative; display: inline-block; cursor: pointer;' " +
+                "onmouseover=\"this.children[1].style.visibility='visible'; this.children[1].style.opacity='1';\" " +
+                "onmouseout=\"this.children[1].style.visibility='hidden'; this.children[1].style.opacity='0';\">" +
+                "<svg width='16' height='16' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>" +
+                "<path d='M1 21H23L12 2L1 21Z' fill='orange'/>" +
+                "<path d='M13 16H11V14H13V16ZM13 12H11V9H13V12Z' fill='black'/>" +
+                "</svg>" +
+                $"<span style='visibility: hidden; width: 140px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -70px; opacity: 0; transition: opacity 0.3s;'>{tooltipText}</span>" +
+                "</div> " + oEnitity.TotalHours + "</td>" + Environment.NewLine;
+}
+```
+
+This approach ensures the tooltip becomes visible on hover by changing the `visibility` and `opacity` properties. The inline JavaScript handles the hover effect directly in the HTML.
