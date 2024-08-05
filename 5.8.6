@@ -1,0 +1,41 @@
+It looks like you are trying to perform a conditional comparison between `TotalHours` and `NoOfDays` or `TotalHours` depending on certain conditions. There might be issues with the SQL syntax or the logic of the condition.
+
+Let's simplify and correct the condition. Here’s how you can adjust it:
+
+1. Ensure that the `CASE` statement is properly structured.
+2. Make sure the types of `TotalHours` and `NoOfDays` are consistent for comparison.
+
+Here is the revised condition:
+
+```sql
+SET @SELECT = @SELECT + ' AND (t1.TotalHours != r.TotalHours OR 
+                               (CASE 
+                                  WHEN t4.PracticeName = ''CPPE'' AND r.RotaId IS NULL 
+                                  THEN t1.TotalHours != t9.NoOfDays 
+                                  ELSE t1.TotalHours != r.TotalHours 
+                                END) OR 
+                               r.TotalHours IS NULL)'
+```
+
+This condition checks:
+1. If `t1.TotalHours` is not equal to `r.TotalHours`.
+2. If the practice name is "CPPE" and `RotaId` is null, then `t1.TotalHours` is not equal to `t9.NoOfDays`.
+3. Otherwise, if `t1.TotalHours` is not equal to `r.TotalHours`.
+4. Or if `r.TotalHours` is null.
+
+Ensure that `TotalHours` and `NoOfDays` are of comparable types (both numeric or decimal) to avoid type mismatch issues.
+
+Additionally, if `TotalHours` or `NoOfDays` could be null, you might need to handle that in your comparisons as well:
+
+```sql
+SET @SELECT = @SELECT + ' AND ((t1.TotalHours IS NOT NULL AND r.TotalHours IS NOT NULL AND t1.TotalHours != r.TotalHours) OR 
+                               (t1.TotalHours IS NOT NULL AND 
+                                (CASE 
+                                   WHEN t4.PracticeName = ''CPPE'' AND r.RotaId IS NULL AND t9.NoOfDays IS NOT NULL 
+                                   THEN t1.TotalHours != t9.NoOfDays 
+                                   ELSE t1.TotalHours != r.TotalHours 
+                                 END)) OR 
+                               r.TotalHours IS NULL)'
+```
+
+This ensures that you are not comparing null values, which could cause issues in your query.
