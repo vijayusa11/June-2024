@@ -1,0 +1,6 @@
+TotalHours is decimal	
+NoOfDays is	numeric
+issue with this thing i guess - (t1.totalhours != (case when t4.PracticeName = ''CPPE'' and r.RotaId is null then t9.NoOfDays else r.TotalHours))
+not able to check this condition
+SET @SELECT = @SELECT + ' AND ((t1.totalhours != r.totalhours) OR (t1.totalhours != (case when t4.PracticeName = ''CPPE'' and r.RotaId is null then t9.NoOfDays else r.TotalHours)) OR r.totalhours is null)' 
+	
