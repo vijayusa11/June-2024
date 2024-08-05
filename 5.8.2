@@ -1,0 +1,225 @@
+when i am input from date and todate for same day like 5 aug 2024 then its goint to give me data for 5 aug 2024
+if i get date like 1 aug to 18 aug then its not gives any data for that specific time period 
+
+ 
+ALTER PROCEDURE [dbo].[TMS_spGetTimesheetUnSubmittedStatus]
+(
+	@OrderBy varchar(1000), 
+	@StartRow int, 
+	@EndRow int,
+	
+	@EmployeeName nvarchar(100),
+	@TimesheetDate nvarchar(10),
+	@ProjectName nvarchar(100),
+	@PracticeName nvarchar(100),
+	
+	@TotalHours nvarchar(10),
+	@TotalMins nvarchar(20),
+	@Rate nvarchar(5),
+	@TotalRate nvarchar(10),
+	
+	@RateTypeId nvarchar(10),
+	@WorkTypeId nvarchar(10),
+	@Status nvarchar(50),
+	@FromDate nvarchar(10),
+	@ToDate nvarchar(10),
+	@TimesheetStatusId nvarchar(10),
+	@AuthoriserName nvarchar(100),
+	@AuthorisedDate nvarchar(20),
+	
+	@CreatedDate nvarchar(20),
+	@SubmittedDate nvarchar(20),
+	
+	@EmployeeId nvarchar(10),
+	
+	@ViewerId int,
+	@ForEmployee bit = 0,
+	@mystaff bit = 0,
+	@TotalCount int out
+)
+As     
+BEGIN
+declare @SELECT varchar(8000);
+declare @IsAdmin bit;
+
+WITH ListDates (AllDates) AS (  SELECT convert(DATETIME, '01/01/2024', 103) AS DATE  
+UNION ALL  SELECT DATEADD(DAY, 1, AllDates)  FROM ListDates  WHERE AllDates < convert(DATETIME, '30/07/2024', 103) )  
+  
+SELECT AllDates  
+INTO #ListDate  
+FROM ListDates  
+OPTION (MAXRECURSION 1000)  
+  
+set @SELECT = 'SELECT   '	
+set @SELECT = @SELECT + ' 	a1.AllDates,'
+set @SELECT = @SELECT + ' 	a1.TimesheetId,'
+set @SELECT = @SELECT + ' 	b1.EmployeeId,'
+set @SELECT = @SELECT + ' 	b1.rotaid,'
+set @SELECT = @SELECT + ' 	a1.TimesheetDate,'
+set @SELECT = @SELECT + ' 	a1.ProjectId,'
+set @SELECT = @SELECT + ' 	a1.TimesheetStatusId,'
+set @SELECT = @SELECT + ' 	a1.TotalHours,'
+set @SELECT = @SELECT + ' 	a1.AdditionalHours,'
+set @SELECT = @SELECT + ' 	a1.TotalMins,'
+set @SELECT = @SELECT + ' 	a1.Rate,'
+set @SELECT = @SELECT + ' 	a1.TotalRate,'
+set @SELECT = @SELECT + ' 	a1.RotaDate,'
+set @SELECT = @SELECT + ' 	a1.RotaPracticeName,'
+set @SELECT = @SELECT + ' 	a1.RotaShiftTime,'
+set @SELECT = @SELECT + ' 	a1.RotaAdditionalHours,'
+set @SELECT = @SELECT + ' 	a1.RotaHoursType,'
+set @SELECT = @SELECT + ' 	a1.RotaTotalHours,'
+set @SELECT = @SELECT + ' 	a1.RotaTotalMins,'
+set @SELECT = @SELECT + ' 	a1.isTimesheetSubmitted,'
+set @SELECT = @SELECT + ' 	a1.RateTypeId,'
+set @SELECT = @SELECT + ' 	a1.WorkTypeId,'
+set @SELECT = @SELECT + ' 	a1.PracticeId,'
+set @SELECT = @SELECT + ' 	a1.AuthoriserName,'
+set @SELECT = @SELECT + ' 	a1.AuthorisedDate,'
+set @SELECT = @SELECT + ' 	a1.STATUS,'
+set @SELECT = @SELECT + ' 	a1.ProjectName,'
+set @SELECT = @SELECT + ' 	PracticeName,'
+set @SELECT = @SELECT + ' 	EmployeeName,'
+set @SELECT = @SELECT + ' 	Comment,'
+set @SELECT = @SELECT + ' 	WorkType,'
+set @SELECT = @SELECT + ' 	RateType,'
+set @SELECT = @SELECT + ' 	CreatedDate,'
+set @SELECT = @SELECT + ' 	SubmittedDate,'
+set @SELECT = @SELECT + ' 	TROR'
+set @SELECT = @SELECT + ' 	FROM LD.AllDates, '
+set @SELECT = @SELECT + ' 	t1.TimesheetId, '
+set @SELECT = @SELECT + ' 	t1.EmployeeId, '
+set @SELECT = @SELECT + ' 	t1.TimesheetDate , '
+set @SELECT = @SELECT + ' 	t1.ProjectId, '
+set @SELECT = @SELECT + ' 	t1.TimesheetStatusId, '
+set @SELECT = @SELECT + ' 	CASE   
+							WHEN ISNULL(t1.IsAdditionalHours, 0) = 0  
+							THEN ISNULL(t1.TotalHours, 0)  
+							ELSE 0  
+							END TotalHours  , '
+set @SELECT = @SELECT + ' 	CASE   
+							WHEN ISNULL(t1.IsAdditionalHours, 0) = 1  
+							THEN ISNULL(t1.TotalHours, 0)  
+							ELSE 0  
+							END AdditionalHours  , '
+set @SELECT = @SELECT + ' 	isnull(t1.TotalMins, 0) TotalMins, '
+set @SELECT = @SELECT + ' 	isnull(t1.Rate, 0) Rate, '
+set @SELECT = @SELECT + ' 	isnull(t1.TotalRate, 0) TotalRate, '
+set @SELECT = @SELECT + ' 	R.RotaDate, '
+set @SELECT = @SELECT + ' 	ISNULL(t5.PracticeName, '') RotaPracticeName, '
+set @SELECT = @SELECT + ' 	R.ShiftTime RotaShiftTime, '
+set @SELECT = @SELECT + ' 	R.AdditionalHours RotaAdditionalHours, '
+set @SELECT = @SELECT + ' 	R.HoursType RotaHoursType, '
+set @SELECT = @SELECT + ' 	R.TotalHours as RotaTotalHours, '
+set @SELECT = @SELECT + ' 	R.TotalMins RotaTotalMins, '
+set @SELECT = @SELECT + ' 	CASE   
+							WHEN t1.TimesheetId IS NOT NULL  
+							AND t1.TimesheetStatusId = 1  
+							THEN 1  
+							ELSE 0  
+							END isTimesheetSubmitted , '
+set @SELECT = @SELECT + ' 	isnull(t1.RateTypeId, 0) RateTypeId, '
+set @SELECT = @SELECT + ' 	isnull(t1.WorkTypeId, 0) WorkTypeId, '
+set @SELECT = @SELECT + ' 	isnull(t1.PracticeId, 0) PracticeId, '
+set @SELECT = @SELECT + ' 	t1.AuthoriserName, '
+set @SELECT = @SELECT + ' 	t1.AuthorisedDate, '
+set @SELECT = @SELECT + ' 	t2.STATUS, '
+set @SELECT = @SELECT + ' 	t3.ProjectName, '
+set @SELECT = @SELECT + ' 	isnull(t4.PracticeName, '') PracticeName, '
+set @SELECT = @SELECT + ' 	(t6.FirstName + '' '' + t6.LastName) AS EmployeeName'
+set @SELECT = @SELECT + ' 	t1.Comment, '
+set @SELECT = @SELECT + ' 	WorkType = CASE t1.WorkTypeId  
+							WHEN 1  
+							THEN ''Locums Contractor''
+							WHEN 2  
+							THEN ''Inter Company''
+							ELSE ''Paye''  
+							END  , '
+set @SELECT = @SELECT + ' 	RateType = CASE t1.RateTypeId  
+							WHEN 1  
+							THEN ''Per Day''  
+							WHEN 2  
+							THEN ''Per Hour''  
+							ELSE ''''  
+							END  , '
+set @SELECT = @SELECT + ' 	t1.CreatedDate AS CreatedDate, '
+set @SELECT = @SELECT + ' 	t1.SUBMITTEDDATE AS SubmittedDate, ' 
+set @SELECT = @SELECT + ' 	NULL AS TROR '
+set @SELECT = @SELECT + ' 	FROM #ListDate LD ' 
+set @SELECT = @SELECT + ' 	LEFT JOIN dbo.TMS_Timesheets AS t1 with(nolock) ON LD.AllDates = t1.TimesheetDate'     
+set @SELECT = @SELECT + ' 	LEFT JOIN dbo.TMS_TimesheetStatuses AS t2 with(nolock)ON t1.TimesheetStatusId = t2.StatusId '  
+set @SELECT = @SELECT + ' 	LEFT JOIN dbo.TMS_Projects AS t3 with(nolock)ON t1.ProjectId = t3.ProjectId '  
+set @SELECT = @SELECT + ' 	LEFT JOIN dbo.RotaDetails AS r with(nolock)ON LD.AllDates = r.RotaDate '    
+set @SELECT = @SELECT + ' 	LEFT JOIN dbo.RotaDetails AS r with(nolock)ON LD.AllDates = r.RotaDate AND (  
+							r.EmployeeId = t1.EmployeeId  
+							OR t1.TimesheetDate != NULL  
+							)  
+							AND (  
+							r.PracticeId = t1.PracticeId  
+							OR t1.TimesheetDate != NULL  
+							)  '
+set @SELECT = @SELECT + ' 	LEFT JOIN dbo.TMS_Practices AS t4 with(nolock)ON t1.PracticeId = t4.PracticeId ' 
+set @SELECT = @SELECT + ' 	LEFT JOIN dbo.TMS_Practices AS t5 with(nolock) ON r.PracticeId = t5.PracticeId  ' 
+set @SELECT = @SELECT + ' 	LEFT JOIN dbo.Employees AS t6 ON ISNULL(t1.EmployeeId, r.EmployeeId) = t6.EmployeeId ' 
+ set @SELECT = @SELECT + ' WHERE 1 = 1  
+  AND t6.EmployeeId IS NOT NULL  
+  AND (  
+   t1.AuthoriserId = 1  
+   OR t1.AuthoriserId IS NULL  
+   )  
+  AND LD.AllDates >= convert(DATETIME, ''01/01/2024'', 103)  
+  AND LD.AllDates <= convert(DATETIME, ''30/07/2024'', 103)  
+  AND convert(VARCHAR, isnull(t1.TimesheetStatusId, 1)) = 6  
+ ) AS a1  '	  
+ 
+	set @SELECT = @SELECT + ' 	RIGHT OUTER JOIN  (' 
+ 	set @SELECT = 'SELECT   '	
+	set @SELECT = @SELECT + ' 	t6.EmployeeId,'
+	set @SELECT = @SELECT + ' 	t1.TimesheetId,'
+	set @SELECT = @SELECT + ' 	max(r.RotaId) AS RotaId,'
+	set @SELECT = @SELECT + ' 	t2.STATUS,'
+	set @SELECT = @SELECT + ' 	FROM dbo.Employees t6  with(nolock) ' 	
+	set @SELECT = @SELECT + ' 	LEFT JOIN dbo.rotadetails r with(nolock)ON t6.EmployeeId = r.EmployeeId '
+	set @SELECT = @SELECT + ' 	LEFT JOIN dbo.Tms_Timesheets t1 with(nolock)ON r.EmployeeId = t1.EmployeeId  AND r.PracticeId = t1.PracticeId   ' 
+	set @SELECT = @SELECT + ' 	INNER JOIN TMS_Projects AS t3 ON t1.ProjectId=t3.ProjectId'
+	set @SELECT = @SELECT + ' 	LEFT JOIN TMS_Practices AS t4 ON t1.PracticeId= t4.PracticeId'
+	set @SELECT = @SELECT + ' 	LEFT JOIN dbo.TMS_TimesheetStatuses t2 with(nolock) ON t2.StatusId = t1.TimesheetStatusId  ' 
+	set @SELECT = @SELECT + '	Rotaid IS NOT null  AND t1.TimesheetId IS NULL OR TimesheetStatusId = 6  GROUP BY t6.EmployeeId ,' 
+	set @SELECT = @SELECT + ' 	t1.TimesheetId ,'
+	set @SELECT = @SELECT + ' 	t2.STATUS  ,'
+	set @SELECT = @SELECT + ' 	) AS b1 ON a1.EmployeeId = b1.EmployeeId  ,'
+ 
+   if @IsAdmin <> 1
+	begin
+		print 'patel'
+		set @SELECT = @SELECT + ' and t1.AuthoriserId ='+ convert(varchar,@ViewerId) + ''
+		--if @IsLineManager = 1
+		--begin
+		--	set @SELECT = @SELECT + ' and t6.LineManagerId='+ convert(varchar,@ViewerId) + ''
+		--end
+	end
+	else if @mystaff = 1
+	begin
+		print 'dev'
+		set @SELECT = @SELECT + ' and t1.AuthoriserId ='+ convert(varchar,@ViewerId) + ''
+	end	
+		if @ProjectName<>''
+	begin
+		set @SELECT = @SELECT + ' and isnull(t3.ProjectName,'''') like ''%'+ convert(varchar,@ProjectName) +'%'' '
+	end 
+	if @PracticeName<>''
+	begin
+		set @SELECT = @SELECT + ' and isnull(t4.PracticeName,'''') like ''%'+ convert(varchar,@PracticeName) +'%'' '
+	end 
+		if @FromDate<>''
+	begin
+		set @SELECT = @SELECT + ' and t1.TimesheetDate >= convert(datetime,'''+ @FromDate  + ''',103) '
+	end 
+	if @ToDate<>''
+	begin
+		--set @SELECT = @SELECT + ' and t1.TimesheetDate <='''+ convert(varchar(10),@ToDate,103) +''' '
+		set @SELECT = @SELECT + ' and t1.TimesheetDate <= convert(datetime,'''+ @ToDate  + ''',103) '
+	end 
+
+
+ END
