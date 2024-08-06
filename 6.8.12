@@ -1,0 +1,145 @@
+To ensure the values are parsed correctly, we can create a more robust method to extract the `agentExtension`, `timesheetOwner`, and `divisionValue` based on the updated requirements. 
+
+Here's the revised method, along with helper functions to correctly extract each value:
+
+### InsertIntoDatabase Method
+
+```csharp
+private void InsertIntoDatabase(string csvFilePath)
+{
+    try
+    {
+        if (!File.Exists(csvFilePath))
+        {
+            LogToErrorFile($"File not found: {csvFilePath}");
+            return;
+        }
+
+        using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime, Division)
+                                   VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime, @Division)";
+
+            using (var insertCommand = new SqlCommand(insertQuery, connection))
+            {
+                using (var reader = new StreamReader(csvFilePath))
+                {
+                    // Skip the first 6 lines of metadata
+                    for (int i = 0; i < 6; i++)
+                    {
+                        reader.ReadLine();
+                    }
+
+                    // Read the header row
+                    reader.ReadLine();
+
+                    while (!reader.EndOfStream)
+                    {
+                        var line = reader.ReadLine();
+                        var values = line.Split(',');
+
+                        if (values.Length < 9)
+                        {
+                            LogToErrorFile($"Skipping line due to insufficient values: {line}");
+                            continue;
+                        }
+
+                        var agentExtensionWithOwner = values[0].Trim();
+                        var totalTalkingTime = values[8].Trim();
+                        var agentExtension = ExtractFirstNumeric(agentExtensionWithOwner);
+                        var timesheetOwner = ExtractTimesheetOwner(agentExtensionWithOwner);
+                        var divisionValue = ExtractDivision(agentExtensionWithOwner);
+
+                        // Insert only if all values are not empty
+                        if (!string.IsNullOrEmpty(agentExtension) && 
+                            !string.IsNullOrEmpty(timesheetOwner) && 
+                            !string.IsNullOrEmpty(totalTalkingTime) && 
+                            !string.IsNullOrEmpty(divisionValue))
+                        {
+                            insertCommand.Parameters.Clear();
+                            insertCommand.Parameters.AddWithValue("@Date", DateTime.Today);
+                            insertCommand.Parameters.AddWithValue("@Agent", agentExtension);
+                            insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                            insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+                            insertCommand.Parameters.AddWithValue("@Division", divisionValue);
+
+                            insertCommand.ExecuteNonQuery();
+                        }
+                        else
+                        {
+                            LogToErrorFile($"Skipping line due to empty values: {line}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch (IOException ioEx)
+    {
+        LogToErrorFile($"IO Exception: {ioEx.Message}");
+        StartConsoleWriting(ioEx.Message);
+    }
+    catch (UnauthorizedAccessException uaEx)
+    {
+        LogToErrorFile($"Unauthorized Access Exception: {uaEx.Message}");
+        StartConsoleWriting(uaEx.Message);
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile($"General Exception: {ex.Message}");
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### Helper Methods
+
+```csharp
+static string ExtractFirstNumeric(string input)
+{
+    var match = Regex.Match(input, @"^\d+");
+    return match.Success ? match.Value : string.Empty;
+}
+
+static string ExtractDivision(string input)
+{
+    var match = Regex.Match(input, @"^\d+\s+(.+?),");
+    return match.Success ? match.Groups[1].Value : string.Empty;
+}
+
+static string ExtractTimesheetOwner(string input)
+{
+    int startIndex = input.IndexOf(',') + 1;
+    if (startIndex == 0 || startIndex >= input.Length) return string.Empty;
+    return input.Substring(startIndex).Trim();
+}
+```
+
+### Explanation
+
+1. **ExtractFirstNumeric**:
+   - Uses a regular expression to match the first numeric value at the beginning of the string. This removes any leading quote marks and correctly extracts the numeric value.
+
+2. **ExtractDivision**:
+   - Uses a regular expression to match the text between the first numeric value and the first comma. This extracts the division value correctly.
+
+3. **ExtractTimesheetOwner**:
+   - Extracts the text after the first comma. This ensures it correctly gets the timesheet owner's name.
+
+### Example Input
+
+For an input string like:
+```
+"1001 Mental Health - Doctors, James Blackburn"
+```
+- `ExtractFirstNumeric` should return "1001".
+- `ExtractDivision` should return "Mental Health - Doctors".
+- `ExtractTimesheetOwner` should return "James Blackburn".
+
+### Testing
+
+Test with different input strings to ensure the extraction methods work correctly for various cases. Adjust the code if any edge cases are found.
+
+With these adjustments, the method should correctly read the input line and insert the appropriate values into the database.
