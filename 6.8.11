@@ -1,0 +1,32 @@
+
+i want to part them in three values
+agentExtension is correct but remove " before number
+timesheetOwner want to take values after comma sign (,)
+divisionValue want to take values after agentExtension and before comma sign values that timesheetOwner value
+
+var agentExtensionWithOwner = values[0].Trim();
+var totalTalkingTime = values[8].Trim();
+var divisionValue = values[0].Trim();
+// Split agent and owner
+var parts = agentExtensionWithOwner.Split(' ', 2);
+
+if (parts.Length < 2)
+{
+    LogToErrorFile($"Skipping line due to invalid agentExtensionWithOwner format: {line}");
+    continue;
+}
+
+var agentExtension = parts[0].Trim();
+var timesheetOwner = parts[1].Trim();
+
+// Insert only if agentExtension and timesheetOwner are not empty
+if (!string.IsNullOrEmpty(agentExtension) && !string.IsNullOrEmpty(timesheetOwner))
+{
+    insertCommand.Parameters.Clear();
+    insertCommand.Parameters.AddWithValue("@Date", DateTime.Today);
+    insertCommand.Parameters.AddWithValue("@Agent", agentExtension);
+    insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+    insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+    insertCommand.Parameters.AddWithValue("@Division", divisionValue);
+    insertCommand.ExecuteNonQuery();
+}
