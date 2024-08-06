@@ -1,0 +1,40 @@
+To include the `Division` column in the `CreateHeaderRow` method, we need to update it to add this column to the header row. Here is the updated `CreateHeaderRow` method:
+
+### Updated `CreateHeaderRow` Method:
+
+```csharp
+void CreateHeaderRow(ISheet sheet, XSSFCellStyle style)
+{
+    try
+    {
+        // Create a new row at the top of the sheet for the header
+        var headerRow = sheet.CreateRow(0);
+
+        // Define the headers
+        string[] headers = { "Date", "Agent", "Timesheet Owner", "Total Talking time", "Division" };
+
+        // Loop through each header and create a cell in the header row
+        for (int i = 0; i < headers.Length; i++)
+        {
+            var cell = headerRow.CreateCell(i);
+            cell.SetCellValue(headers[i]); // Set the header text
+            cell.CellStyle = style; // Apply the style to the cell
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### Explanation:
+
+1. **Headers Definition**:
+   - The `headers` array now includes `"Division"` along with the other column names: `"Date"`, `"Agent"`, `"Timesheet Owner"`, and `"Total Talking time"`.
+
+2. **Loop to Create Header Cells**:
+   - The method iterates through the `headers` array and creates a cell for each header, setting its value and style.
+
+This update ensures that the `Division` column is included in the header row when creating the CSV file.
