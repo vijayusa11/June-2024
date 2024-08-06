@@ -1,0 +1,5 @@
+want to set a condition in sql server that 
+if t5.PracticeName = ''CPPE'' then t9.Reason AS AdditionInfo
+else blank or null AS AdditionInfo
+
+set @SELECT = @SELECT + '  case when t5.PracticeName = ''CPPE'' then t9.Reason else 0  AS AdditionInfo
