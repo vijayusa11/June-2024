@@ -1,0 +1,317 @@
+now i have input data in this format
+New input data format - 1001 Mental Health - Doctors, James Blackburn
+
+from which in output file a am getting first numeric in column A
+then after 1st non-numeric to first comma want to insert data in column E where name is Division
+After comma it will in column C
+
+Eariler input data format - 1000 Spare 
+Earlier code -
+public void OverwriteCsvWithDataFromDatabase(string csvFilePath)
+{
+    try
+    {
+        // Fetch data from the database
+        var data = FetchDataFromDatabase();
+
+        // Append data to the CSV file
+        WriteDataToCsv(csvFilePath, data);
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+        throw;
+    }
+}
+private DataTable FetchDataFromDatabase()
+{
+    var dataTable = new DataTable();
+
+    using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+    {
+        connection.Open();
+        string query = $"SELECT * from OutputFileDetails";
+
+        using (var command = new SqlCommand(query, connection))
+        {
+            using (var adapter = new SqlDataAdapter(command))
+            {
+                adapter.Fill(dataTable);
+            }
+        }
+    }
+
+    return dataTable;
+}
+private void WriteDataToCsv(string csvFilePath, DataTable data)
+{
+    using (var writer = new StreamWriter(csvFilePath, false, Encoding.UTF8))
+    {
+        // Write header
+        WriteHeader(writer, data.Columns);
+
+        // Write rows
+        WriteRows(writer, data);
+    }
+}
+private void WriteHeader(StreamWriter writer, DataColumnCollection columns)
+{
+    var header = string.Join(",", columns.Cast<DataColumn>().Where(column => column.ColumnName != "Id").Select(column => column.ColumnName));
+    writer.WriteLine(header);
+}
+private void WriteRows(StreamWriter writer, DataTable data)
+{
+    foreach (DataRow row in data.Rows)
+    {
+        var rowValues = row.ItemArray
+            .Where((field, index) => data.Columns[index].ColumnName != "Id")
+            .Select(field =>
+            {
+                if (field is DateTime dateTime)
+                {
+                    return dateTime.ToString("dd-MM-yyyy");
+                }
+                return field.ToString();
+            });
+
+        var rowString = string.Join(",", rowValues);
+        writer.WriteLine(rowString);
+    }
+}
+
+ private void InsertIntoDatabase(string csvFilePath)
+ {
+     try
+     {
+         if (!File.Exists(csvFilePath))
+         {
+             LogToErrorFile($"File not found: {csvFilePath}");
+             return;
+         }
+
+         using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+         {
+             connection.Open();
+
+             string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime)
+                            VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime)";
+
+             using (var insertCommand = new SqlCommand(insertQuery, connection))
+             {
+                 using (var reader = new StreamReader(csvFilePath))
+                 {
+                     // Skip the first 6 lines of metadata
+                     for (int i = 0; i < 6; i++)
+                     {
+                         reader.ReadLine();
+                     }
+
+                     // Read the header row
+                     reader.ReadLine();
+
+                     while (!reader.EndOfStream)
+                     {
+                         var line = reader.ReadLine();
+                         var values = line.Split(',');
+
+                         if (values.Length < 9)
+                         {
+                             LogToErrorFile($"Skipping line due to insufficient values: {line}");
+                             continue;
+                         }
+
+                         var agentExtensionWithOwner = values[0].Trim();
+                         var totalTalkingTime = values[8].Trim();
+
+                         // Split agent and owner
+                         var parts = agentExtensionWithOwner.Split(' ', 2);
+
+                         if (parts.Length < 2)
+                         {
+                             LogToErrorFile($"Skipping line due to invalid agentExtensionWithOwner format: {line}");
+                             continue;
+                         }
+
+                         var agentExtension = parts[0].Trim();
+                         var timesheetOwner = parts[1].Trim();
+
+                         // Insert only if agentExtension and timesheetOwner are not empty
+                         if (!string.IsNullOrEmpty(agentExtension) && !string.IsNullOrEmpty(timesheetOwner))
+                         {
+                             insertCommand.Parameters.Clear();
+                             insertCommand.Parameters.AddWithValue("@Date", DateTime.Today);
+                             insertCommand.Parameters.AddWithValue("@Agent", agentExtension);
+                             insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                             insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+
+                             insertCommand.ExecuteNonQuery();
+                         }
+                         else
+                         {
+                             LogToErrorFile($"Skipping line due to empty agentExtension or timesheetOwner: {line}");
+                         }
+                     }
+                 }
+             }
+         }
+     }
+     catch (IOException ioEx)
+     {
+         LogToErrorFile($"IO Exception: {ioEx.Message}");
+         StartConsoleWriting(ioEx.Message);
+     }
+     catch (UnauthorizedAccessException uaEx)
+     {
+         LogToErrorFile($"Unauthorized Access Exception: {uaEx.Message}");
+         StartConsoleWriting(uaEx.Message);
+     }
+     catch (Exception ex)
+     {
+         LogToErrorFile($"General Exception: {ex.Message}");
+         StartConsoleWriting(ex.Message);
+     }
+ }
+ public void LoadDailyPatientSiteCsvData(string filePath, ISheet sheet, XSSFWorkbook workbook, string sheetName)
+ {
+     try
+     {
+         XSSFCellStyle numberStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+         numberStyle.DataFormat = workbook.CreateDataFormat().GetFormat("General");
+
+         XSSFCellStyle dateStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+         dateStyle.DataFormat = workbook.CreateDataFormat().GetFormat("dd-MM-yyyy");
+
+         XSSFCellStyle timeStyle = (XSSFCellStyle)workbook.CreateCellStyle();
+         timeStyle.DataFormat = workbook.CreateDataFormat().GetFormat("hh:mm:ss");
+
+         using (TextFieldParser reader = new TextFieldParser(filePath))
+         {
+             reader.HasFieldsEnclosedInQuotes = true;
+             reader.SetDelimiters("\t");
+
+             int rowIndex = 0;
+
+             while (!reader.EndOfData)
+             {
+                 var valueLines = reader.ReadFields();
+                 if (rowIndex == 0)
+                 {
+                     CreateHeaderRow(sheet, numberStyle);
+                     rowIndex++;
+                 }
+                 else if (int.TryParse(valueLines[0].Split(' ')[0], out _)) // Check if the first part is numeric
+                 {
+                     ProcessDataRows(sheet, rowIndex, valueLines, dateStyle, numberStyle, timeStyle);
+                     rowIndex++;
+                 }
+             }
+         }
+     }
+     catch (Exception ex)
+     {
+         LogToErrorFile(ex.Message);
+         StartConsoleWriting(ex.Message);
+         throw;
+     }
+ }
+ void CreateHeaderRow(ISheet sheet, XSSFCellStyle style)
+ {
+     try
+     {
+         // Create a new row at the top of the sheet for the header
+         var headerRow = sheet.CreateRow(0);
+
+         // Define the headers
+         string[] headers = { "Date", "Agent", "Timesheet Owner", "Total Talking time" };
+
+         // Loop through each header and create a cell in the header row
+         for (int i = 0; i < headers.Length; i++)
+         {
+             var cell = headerRow.CreateCell(i);
+             cell.SetCellValue(headers[i]); // Set the header text
+             cell.CellStyle = style; // Apply the style to the cell
+         }
+     }
+     catch (Exception ex)
+     {
+         LogToErrorFile(ex.Message);
+         StartConsoleWriting(ex.Message);
+     }
+ }
+ void ProcessDataRows(ISheet sheet, int rowIndex, string[] valueLines, XSSFCellStyle dateStyle, XSSFCellStyle numberStyle, XSSFCellStyle timeStyle)
+ {
+     try
+     {
+         // Extracting values from the input line
+         string[] columns = valueLines[0].Split('\t'); // Split by tab to separate columns
+         string agentValue = columns[0].Split(' ')[0]; // Extract numeric agent value
+
+         // Extract non-numeric part of the first column as TimesheetOwner value
+         string timesheetOwnerValue = ExtractCharacterValues(columns[0]);
+
+         // Remove commas from TimesheetOwner value
+         timesheetOwnerValue = timesheetOwnerValue.Replace(",", "");
+         timesheetOwnerValue = timesheetOwnerValue.Replace("::", ""); // Remove any extra :: characters
+
+         // Extract value after the last comma for totalTalkingTimeValue
+         string totalTalkingTimeValue = ExtractTotalTalkingTime(valueLines[0]);
+
+         // Create a new row for data
+         var dataRow = sheet.CreateRow(rowIndex);
+
+         // Setting Date cell with current date
+         var dateCell = dataRow.CreateCell(0);
+         dateCell.SetCellValue(DateTime.Today); // Assuming you want today's date
+         dateCell.CellStyle = dateStyle;
+
+         // Setting Agent cell
+         var agentCell = dataRow.CreateCell(1);
+         agentCell.SetCellValue(agentValue);
+         agentCell.CellStyle = numberStyle;
+
+         // Setting TimesheetOwner cell
+         var timesheetOwnerCell = dataRow.CreateCell(2);
+         timesheetOwnerCell.SetCellValue(timesheetOwnerValue);
+         timesheetOwnerCell.CellStyle = numberStyle; // Apply appropriate style as needed
+
+         // Setting Total Talking time cell
+         var totalTalkingTimeCell = dataRow.CreateCell(3);
+         totalTalkingTimeCell.SetCellValue(totalTalkingTimeValue);
+         totalTalkingTimeCell.CellStyle = timeStyle;
+
+         // Method to extract character values from a string and remove commas
+         static string ExtractCharacterValues(string input)
+         {
+             StringBuilder result = new StringBuilder();
+             foreach (char c in input)
+             {
+                 if (!char.IsDigit(c) && c != '\t' && c != ',')
+                 {
+                     result.Append(c);
+                 }
+             }
+             return result.ToString().Trim();
+         }
+
+         // Method to extract value after the last comma for total talking time
+         static string ExtractTotalTalkingTime(string input)
+         {
+             // Split by comma and take the last part
+             string[] parts = input.Split(',');
+             if (parts.Length > 1)
+             {
+                 return parts[parts.Length - 1].Trim();
+             }
+             else
+             {
+                 return "";
+             }
+         }
+     }
+     catch (Exception ex)
+     {
+         LogToErrorFile(ex.Message);
+         StartConsoleWriting(ex.Message);
+     }
+ }
