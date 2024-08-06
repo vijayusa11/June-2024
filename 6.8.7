@@ -1,0 +1,225 @@
+Below are the updated methods to handle the specified input and output formats:
+
+### Updated `CreateHeaderRow` Method
+
+```csharp
+void CreateHeaderRow(ISheet sheet, XSSFCellStyle style)
+{
+    try
+    {
+        // Create a new row at the top of the sheet for the header
+        var headerRow = sheet.CreateRow(0);
+
+        // Define the headers
+        string[] headers = { "Date", "Agent", "Timesheet Owner", "Total Talking time", "Division" };
+
+        // Loop through each header and create a cell in the header row
+        for (int i = 0; i < headers.Length; i++)
+        {
+            var cell = headerRow.CreateCell(i);
+            cell.SetCellValue(headers[i]); // Set the header text
+            cell.CellStyle = style; // Apply the style to the cell
+        }
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### Updated `ProcessDataRows` Method
+
+```csharp
+void ProcessDataRows(ISheet sheet, int rowIndex, string[] valueLines, XSSFCellStyle dateStyle, XSSFCellStyle numberStyle, XSSFCellStyle timeStyle)
+{
+    try
+    {
+        // Extracting values from the input line
+        string input = valueLines[0];
+
+        // Extract numeric agent value
+        string agentValue = ExtractFirstNumeric(input);
+
+        // Extract Division value (text after first non-numeric to the first comma)
+        string divisionValue = ExtractDivision(input);
+
+        // Extract Timesheet Owner value (text after the first comma)
+        string timesheetOwnerValue = ExtractTimesheetOwner(input);
+
+        // Extract Total Talking time value (last column)
+        string totalTalkingTimeValue = valueLines[8].Trim();
+
+        // Create a new row for data
+        var dataRow = sheet.CreateRow(rowIndex);
+
+        // Setting Date cell with current date
+        var dateCell = dataRow.CreateCell(0);
+        dateCell.SetCellValue(DateTime.Today.ToString("dd/MM/yyyy")); // Assuming you want today's date in dd/MM/yyyy format
+        dateCell.CellStyle = dateStyle;
+
+        // Setting Agent cell
+        var agentCell = dataRow.CreateCell(1);
+        agentCell.SetCellValue(agentValue);
+        agentCell.CellStyle = numberStyle;
+
+        // Setting Timesheet Owner cell
+        var timesheetOwnerCell = dataRow.CreateCell(2);
+        timesheetOwnerCell.SetCellValue(timesheetOwnerValue);
+        timesheetOwnerCell.CellStyle = numberStyle;
+
+        // Setting Total Talking time cell
+        var totalTalkingTimeCell = dataRow.CreateCell(3);
+        totalTalkingTimeCell.SetCellValue(totalTalkingTimeValue);
+        totalTalkingTimeCell.CellStyle = timeStyle;
+
+        // Setting Division cell
+        var divisionCell = dataRow.CreateCell(4); // Column E (index 4)
+        divisionCell.SetCellValue(divisionValue);
+        divisionCell.CellStyle = numberStyle; // Apply appropriate style as needed
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile(ex.Message);
+        StartConsoleWriting(ex.Message);
+    }
+}
+
+static string ExtractFirstNumeric(string input)
+{
+    StringBuilder numericValue = new StringBuilder();
+    foreach (char c in input)
+    {
+        if (char.IsDigit(c))
+        {
+            numericValue.Append(c);
+        }
+        else
+        {
+            break;
+        }
+    }
+    return numericValue.ToString().Trim();
+}
+
+static string ExtractDivision(string input)
+{
+    int startIndex = input.IndexOf(' ') + 1;
+    int endIndex = input.IndexOf(',', startIndex);
+    if (endIndex == -1) return input.Substring(startIndex).Trim();
+    return input.Substring(startIndex, endIndex - startIndex).Trim();
+}
+
+static string ExtractTimesheetOwner(string input)
+{
+    int startIndex = input.IndexOf(',') + 1;
+    if (startIndex == 0) return "";
+    return input.Substring(startIndex).Trim();
+}
+```
+
+### Updated `InsertIntoDatabase` Method
+
+```csharp
+private void InsertIntoDatabase(string csvFilePath)
+{
+    try
+    {
+        if (!File.Exists(csvFilePath))
+        {
+            LogToErrorFile($"File not found: {csvFilePath}");
+            return;
+        }
+
+        using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime, Division)
+                                   VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime, @Division)";
+
+            using (var insertCommand = new SqlCommand(insertQuery, connection))
+            {
+                using (var reader = new StreamReader(csvFilePath))
+                {
+                    // Skip the first 6 lines of metadata
+                    for (int i = 0; i < 6; i++)
+                    {
+                        reader.ReadLine();
+                    }
+
+                    // Read the header row
+                    reader.ReadLine();
+
+                    while (!reader.EndOfStream)
+                    {
+                        var line = reader.ReadLine();
+                        var values = line.Split('\t');
+
+                        if (values.Length < 9)
+                        {
+                            LogToErrorFile($"Skipping line due to insufficient values: {line}");
+                            continue;
+                        }
+
+                        var agentValue = ExtractFirstNumeric(values[0].Trim());
+                        var divisionValue = ExtractDivision(values[0].Trim());
+                        var timesheetOwnerValue = ExtractTimesheetOwner(values[0].Trim());
+                        var totalTalkingTime = values[8].Trim();
+
+                        // Insert only if all values are not empty
+                        if (!string.IsNullOrEmpty(agentValue) && 
+                            !string.IsNullOrEmpty(timesheetOwnerValue) && 
+                            !string.IsNullOrEmpty(totalTalkingTime) && 
+                            !string.IsNullOrEmpty(divisionValue))
+                        {
+                            insertCommand.Parameters.Clear();
+                            insertCommand.Parameters.AddWithValue("@Date", DateTime.Today);
+                            insertCommand.Parameters.AddWithValue("@Agent", agentValue);
+                            insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwnerValue);
+                            insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+                            insertCommand.Parameters.AddWithValue("@Division", divisionValue);
+
+                            insertCommand.ExecuteNonQuery();
+                        }
+                        else
+                        {
+                            LogToErrorFile($"Skipping line due to empty values: {line}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch (IOException ioEx)
+    {
+        LogToErrorFile($"IO Exception: {ioEx.Message}");
+        StartConsoleWriting(ioEx.Message);
+    }
+    catch (UnauthorizedAccessException uaEx)
+    {
+        LogToErrorFile($"Unauthorized Access Exception: {uaEx.Message}");
+        StartConsoleWriting(uaEx.Message);
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile($"General Exception: {ex.Message}");
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### Explanation:
+
+1. **CreateHeaderRow Method**:
+   - Added the `Division` column to the header.
+
+2. **ProcessDataRows Method**:
+   - Extracted `Division` value from the input line.
+   - Extracted `Timesheet Owner` value from the input line.
+   - Extracted `Total Talking time` value from the last column.
+   - Set the values in the corresponding columns in the output sheet.
+
+3. **InsertIntoDatabase Method**:
+   - Modified to handle the new format, including extracting and inserting the `Division` value.
