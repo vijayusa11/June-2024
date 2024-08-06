@@ -1,0 +1,146 @@
+To ensure that the `InsertIntoDatabase` method works correctly, we need to ensure that we are correctly reading and processing the input line, and then mapping the extracted values to the corresponding database columns.
+
+Let's adjust the `InsertIntoDatabase` method to handle the input data correctly:
+
+### Updated `InsertIntoDatabase` Method
+
+```csharp
+private void InsertIntoDatabase(string csvFilePath)
+{
+    try
+    {
+        if (!File.Exists(csvFilePath))
+        {
+            LogToErrorFile($"File not found: {csvFilePath}");
+            return;
+        }
+
+        using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime, Division)
+                                   VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime, @Division)";
+
+            using (var insertCommand = new SqlCommand(insertQuery, connection))
+            {
+                using (var reader = new StreamReader(csvFilePath))
+                {
+                    // Skip the first 6 lines of metadata
+                    for (int i = 0; i < 6; i++)
+                    {
+                        reader.ReadLine();
+                    }
+
+                    // Read the header row
+                    reader.ReadLine();
+
+                    while (!reader.EndOfStream)
+                    {
+                        var line = reader.ReadLine();
+                        var values = line.Split(',');
+
+                        if (values.Length < 9)
+                        {
+                            LogToErrorFile($"Skipping line due to insufficient values: {line}");
+                            continue;
+                        }
+
+                        var agentValue = ExtractFirstNumeric(values[0].Trim());
+                        var divisionValue = ExtractDivision(values[0].Trim());
+                        var timesheetOwnerValue = ExtractTimesheetOwner(values[0].Trim());
+                        var totalTalkingTime = values[8].Trim();
+
+                        // Insert only if all values are not empty
+                        if (!string.IsNullOrEmpty(agentValue) && 
+                            !string.IsNullOrEmpty(timesheetOwnerValue) && 
+                            !string.IsNullOrEmpty(totalTalkingTime) && 
+                            !string.IsNullOrEmpty(divisionValue))
+                        {
+                            insertCommand.Parameters.Clear();
+                            insertCommand.Parameters.AddWithValue("@Date", DateTime.Today);
+                            insertCommand.Parameters.AddWithValue("@Agent", agentValue);
+                            insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwnerValue);
+                            insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+                            insertCommand.Parameters.AddWithValue("@Division", divisionValue);
+
+                            insertCommand.ExecuteNonQuery();
+                        }
+                        else
+                        {
+                            LogToErrorFile($"Skipping line due to empty values: {line}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch (IOException ioEx)
+    {
+        LogToErrorFile($"IO Exception: {ioEx.Message}");
+        StartConsoleWriting(ioEx.Message);
+    }
+    catch (UnauthorizedAccessException uaEx)
+    {
+        LogToErrorFile($"Unauthorized Access Exception: {uaEx.Message}");
+        StartConsoleWriting(uaEx.Message);
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile($"General Exception: {ex.Message}");
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+### Helper Methods
+
+```csharp
+static string ExtractFirstNumeric(string input)
+{
+    StringBuilder numericValue = new StringBuilder();
+    foreach (char c in input)
+    {
+        if (char.IsDigit(c))
+        {
+            numericValue.Append(c);
+        }
+        else
+        {
+            break;
+        }
+    }
+    return numericValue.ToString().Trim();
+}
+
+static string ExtractDivision(string input)
+{
+    int startIndex = input.IndexOf(' ') + 1;
+    int endIndex = input.IndexOf(',', startIndex);
+    if (endIndex == -1) return input.Substring(startIndex).Trim();
+    return input.Substring(startIndex, endIndex - startIndex).Trim();
+}
+
+static string ExtractTimesheetOwner(string input)
+{
+    int startIndex = input.IndexOf(',') + 1;
+    if (startIndex == 0) return "";
+    return input.Substring(startIndex).Trim();
+}
+```
+
+### Explanation:
+
+1. **Reading Lines**:
+   - The method reads each line from the CSV file.
+   - The line is split into columns using the `Split` method.
+
+2. **Extracting Values**:
+   - The first value in the line is processed to extract the `Agent`, `Division`, and `Timesheet Owner` values.
+   - The `Total Talking time` is taken from the last column.
+
+3. **Inserting into Database**:
+   - Each extracted value is checked to ensure it's not empty.
+   - If all values are valid, they are inserted into the database using a parameterized query.
+
+This method should now correctly process the input lines and insert the appropriate values into the database.
