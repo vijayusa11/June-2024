@@ -1,0 +1,44 @@
+Private void InsertIntoDatabase(string csvFilePath)
+{
+    try
+    {
+        // ... (rest of your code)
+
+        while (!reader.EndOfStream)
+        {
+            var line = reader.ReadLine();
+            var values = line.Split(',');
+
+            if (values.Length < 8)
+            {
+                LogToErrorFile($"Skipping line due to insufficient values: {line}");
+                continue;
+            }
+
+            var agentExtensionWithOwner = values[0].Trim('"');
+
+            // Remove any potential prefix before the agent extension
+            int firstSpaceIndex = agentExtensionWithOwner.IndexOf(' ');
+            if (firstSpaceIndex >= 0)
+            {
+                agentExtensionWithOwner = agentExtensionWithOwner.Substring(firstSpaceIndex + 1).Trim();
+            }
+
+            var parts = agentExtensionWithOwner.Split(' ', 2);
+
+            if (parts.Length < 2)
+            {
+                LogToErrorFile($"Skipping line due to invalid agentExtensionWithOwner format: {line}");
+                continue;
+            }
+
+            var agentExtension = parts[0].Trim();
+
+            // Extract timesheetOwner from the first column after the comma
+            var timesheetOwner = values[0].Split(',')[1].Trim();
+
+            // ... (rest of your code)
+        }
+    }
+    // ... (rest of your code)
+}
