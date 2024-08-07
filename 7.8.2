@@ -1,0 +1,101 @@
+The issue is with how you're splitting the `values[0]` to extract "James Blackburn". Your current approach is using space as a delimiter, which is not suitable for the format provided. Instead, you should use the comma as the delimiter to get the correct value for the timesheet owner.
+
+Here's the modified code to correctly extract "James Blackburn" and handle the `Division` correctly:
+
+```csharp
+private void InsertIntoDatabase(string csvFilePath)
+{
+    try
+    {
+        if (!File.Exists(csvFilePath))
+        {
+            LogToErrorFile($"File not found: {csvFilePath}");
+            return;
+        }
+
+        using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime, Division)
+                         VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime, @Division)";
+
+            using (var insertCommand = new SqlCommand(insertQuery, connection))
+            {
+                using (var reader = new StreamReader(csvFilePath))
+                {
+                    // Skip the first 6 lines of metadata
+                    for (int i = 0; i < 6; i++)
+                    {
+                        reader.ReadLine();
+                    }
+
+                    // Read the header row
+                    reader.ReadLine();
+
+                    while (!reader.EndOfStream)
+                    {
+                        var line = reader.ReadLine();
+                        var values = line.Split(',');
+
+                        if (values.Length < 8)
+                        {
+                            LogToErrorFile($"Skipping line due to insufficient values: {line}");
+                            continue;
+                        }
+
+                        var agentExtensionWithOwner = values[0].Trim('"');
+                        var totalTalkingTime = values[8].Trim();
+
+                        // Extract the agent, division, and timesheet owner correctly
+                        var parts = agentExtensionWithOwner.Split(new[] { " - " }, StringSplitOptions.None);
+                        
+                        if (parts.Length < 2)
+                        {
+                            LogToErrorFile($"Skipping line due to invalid agentExtensionWithOwner format: {line}");
+                            continue;
+                        }
+
+                        var agentExtension = parts[0].Split(' ')[0].Trim();
+                        var divisionValue = parts[0].Substring(parts[0].IndexOf(' ') + 1).Trim();
+                        var timesheetOwner = parts[1].Trim();
+
+                        // Insert only if agentExtension and timesheetOwner are not empty
+                        if (!string.IsNullOrEmpty(agentExtension) && !string.IsNullOrEmpty(timesheetOwner))
+                        {
+                            insertCommand.Parameters.Clear();
+                            insertCommand.Parameters.AddWithValue("@Date", DateTime.Today);
+                            insertCommand.Parameters.AddWithValue("@Agent", agentExtension);
+                            insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                            insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+                            insertCommand.Parameters.AddWithValue("@Division", divisionValue);
+                            insertCommand.ExecuteNonQuery();
+                        }
+                        else
+                        {
+                            LogToErrorFile($"Skipping line due to empty agentExtension or timesheetOwner: {line}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch (IOException ioEx)
+    {
+        LogToErrorFile($"IO Exception: {ioEx.Message}");
+        StartConsoleWriting(ioEx.Message);
+    }
+    catch (UnauthorizedAccessException uaEx)
+    {
+        LogToErrorFile($"Unauthorized Access Exception: {uaEx.Message}");
+        StartConsoleWriting(uaEx.Message);
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile($"General Exception: {ex.Message}");
+        StartConsoleWriting(ex.Message);
+    }
+}
+```
+
+This updated approach correctly splits `agentExtensionWithOwner` based on " - " to separate the agent/extension and the timesheet owner. Then, it further splits the agent/extension part to get the `agentExtension` and `divisionValue`. This way, "James Blackburn" will be correctly assigned to `timesheetOwner`.
