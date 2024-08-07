@@ -1,0 +1,113 @@
+values[0] getting these values in debug -
+
+"""1001 Mental Health - Doctors"
+" James Blackburn"""
+""
+1
+0
+2
+0
+3
+0
+00:09:50
+
+i am using this line to get - James Blackburn - this value but still getting - Mental
+var timesheetOwner = values[0].Split(' ', 3)[1].Trim();
+
+
+below is full code to insert into sql server DB -
+private void InsertIntoDatabase(string csvFilePath)
+{
+    try
+    {
+        if (!File.Exists(csvFilePath))
+        {
+            LogToErrorFile($"File not found: {csvFilePath}");
+            return;
+        }
+
+        using (var connection = new SqlConnection(ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString))
+        {
+            connection.Open();                    
+
+            string insertQuery = @"INSERT INTO OutputFileDetails (Date, Agent, TimesheetOwner, TotalTalkingTime, Division)
+                         VALUES (@Date, @Agent, @TimesheetOwner, @TotalTalkingTime, @Division)";
+
+            using (var insertCommand = new SqlCommand(insertQuery, connection))
+            {
+                using (var reader = new StreamReader(csvFilePath))
+                {
+                    // Skip the first 6 lines of metadata
+                    for (int i = 0; i < 6; i++)
+                    {
+                        reader.ReadLine();
+                    }
+
+                    // Read the header row
+                    reader.ReadLine();
+
+                    while (!reader.EndOfStream)
+                    {
+                        var line = reader.ReadLine();
+                        var values = line.Split(',');
+
+                        if (values.Length < 8)
+                        {
+                            LogToErrorFile($"Skipping line due to insufficient values: {line}");
+                            continue;
+                        }
+
+                        var agentExtensionWithOwner = values[0].Trim('"');
+                          var timesheetOwner = values[0].Split(' ', 3)[1].Trim();
+                        // var timesheetOwner = values[0].Trim(',','"');
+                        //   var timesheetOwner = values[0].Split(',')[1].Trim();
+
+                        var totalTalkingTime = values[8].Trim();
+                        // Split agent and owner
+                        var parts = agentExtensionWithOwner.Split(' ', 2);
+
+                        if (parts.Length < 2)
+                        {
+                            LogToErrorFile($"Skipping line due to invalid agentExtensionWithOwner format: {line}");
+                            continue;
+                        }
+
+                        var agentExtension = parts[0].Trim();
+                        var divisionValue = parts[1].Trim('"');
+                       // var timesheetOwner = parts[2].Trim(',');
+                        // Insert only if agentExtension and timesheetOwner are not empty
+                        if (!string.IsNullOrEmpty(agentExtension))
+                        {
+                            insertCommand.Parameters.Clear();
+                            insertCommand.Parameters.AddWithValue("@Date", DateTime.Today);
+                            insertCommand.Parameters.AddWithValue("@Agent", agentExtension);
+                            insertCommand.Parameters.AddWithValue("@TimesheetOwner", timesheetOwner);
+                            insertCommand.Parameters.AddWithValue("@TotalTalkingTime", totalTalkingTime);
+                            insertCommand.Parameters.AddWithValue("@Division", divisionValue);
+                            insertCommand.ExecuteNonQuery();
+                        }
+                        else
+                        {
+                            LogToErrorFile($"Skipping line due to empty agentExtension or timesheetOwner: {line}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch (IOException ioEx)
+    {
+        LogToErrorFile($"IO Exception: {ioEx.Message}");
+        StartConsoleWriting(ioEx.Message);
+    }
+    catch (UnauthorizedAccessException uaEx)
+    {
+        LogToErrorFile($"Unauthorized Access Exception: {uaEx.Message}");
+        StartConsoleWriting(uaEx.Message);
+    }
+    catch (Exception ex)
+    {
+        LogToErrorFile($"General Exception: {ex.Message}");
+        StartConsoleWriting(ex.Message);
+    }
+}
