@@ -1,0 +1,104 @@
+To create a dynamic stored procedure (SP) that allows for dynamic Excel export functionality based on user-selected columns, we need to modify your current SP. We will introduce an input table where users can specify the columns they wish to export, and the SP will then construct the query dynamically based on those selections. Below is a template for how you might implement this:
+
+### Step 1: Create the Input Table for Column Selection
+First, create a table where users can specify the columns they want to include in the export.
+
+```sql
+CREATE TABLE dbo.ExportColumnSelection (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    ColumnName NVARCHAR(100) NOT NULL,
+    IsSelected BIT NOT NULL DEFAULT 0
+);
+
+-- Example insert: Insert all available columns as options, setting `IsSelected` as 1 for default selection.
+INSERT INTO dbo.ExportColumnSelection (ColumnName, IsSelected)
+VALUES
+    ('EmployeeCode', 1),
+    ('FirstName', 1),
+    ('LastName', 1),
+    ('Department', 1),
+    ('Designation', 1),
+    -- Add other columns as necessary
+    ('Email', 0);
+```
+
+### Step 2: Modify the Stored Procedure for Dynamic Column Selection
+The SP will now query the `ExportColumnSelection` table to determine which columns to include in the Excel export.
+
+```sql
+ALTER PROCEDURE [dbo].[spGetEmployeeListWithDynamicExport]
+(
+    @OrderBy varchar(1000), 
+    @EmployeeCode nvarchar(20),	
+    @EmployeeName nvarchar(100),
+    @Designation nvarchar(100),
+    @DepartmentName nvarchar(100),
+    @EmailAddress varchar(100),
+    @Username nvarchar(50),	
+    @EmployeeGroupName nvarchar(100),	
+    @Status nvarchar(20),
+    @ComplianceStatus nvarchar(20),
+    @IsDelete nvarchar(1),
+    @employeeIds nvarchar(50),
+    @ViewerId int,	
+    @TotalCount int out
+)
+AS     
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @IsAdmin BIT;
+    DECLARE @IsLineManager BIT;
+    DECLARE @Select NVARCHAR(MAX) = N'SELECT ';
+    DECLARE @From NVARCHAR(MAX) = N' FROM Employees AS E ';
+    DECLARE @Where NVARCHAR(MAX) = N' WHERE 1 = 1 ';
+    DECLARE @OrderByClause NVARCHAR(MAX);
+    DECLARE @ColumnList NVARCHAR(MAX) = N'';
+    DECLARE @SQL NVARCHAR(MAX);
+    
+    -- Step 1: Get selected columns from ExportColumnSelection table
+    SELECT @ColumnList = STRING_AGG(ColumnName, ', ')
+    FROM dbo.ExportColumnSelection
+    WHERE IsSelected = 1;
+    
+    -- Add selected columns to the SELECT clause
+    SET @Select = @Select + @ColumnList;
+    
+    -- Add any necessary joins (example below assumes basic setup)
+    SET @From = @From + 'LEFT JOIN EmployeeGroups AS EG ON EG.GroupId = E.EmployeeGroupId';
+    
+    -- Apply filtering conditions as necessary
+    IF @EmployeeCode <> ''
+    BEGIN
+        SET @Where = @Where + ' AND E.EmployeeCode LIKE ''%' + @EmployeeCode + '%'' ';
+    END
+    IF @EmployeeName <> ''
+    BEGIN
+        SET @Where = @Where + ' AND (RTRIM(LTRIM(E.FirstName)) + '' '' + RTRIM(LTRIM(E.LastName)) LIKE ''%' + @EmployeeName + '%'')';
+    END
+    -- Add other conditions similarly
+    
+    -- Build the final SQL query
+    SET @SQL = @Select + @From + @Where;
+
+    -- If there is an ORDER BY clause
+    IF @OrderBy <> ''
+    BEGIN
+        SET @SQL = @SQL + ' ORDER BY ' + @OrderBy;
+    END
+
+    -- Debug print the SQL query (remove in production)
+    -- PRINT @SQL;
+
+    -- Execute the final dynamic SQL
+    EXEC sp_executesql @SQL;
+
+END;
+```
+
+### Explanation:
+1. **`ExportColumnSelection` Table:** This table holds the column names and whether they should be included in the export.
+2. **Dynamic Column Selection:** The SP dynamically constructs the `SELECT` statement based on the columns selected in the `ExportColumnSelection` table.
+3. **Filtering and Ordering:** The SP retains all the existing filtering and ordering logic but applies it to the dynamically constructed SQL statement.
+
+This setup allows users to choose which columns to include in their Excel export by updating the `ExportColumnSelection` table, and the SP dynamically adapts to these choices.
