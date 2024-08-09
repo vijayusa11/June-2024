@@ -1,0 +1,76 @@
+To enable multiple selection in a dropdown list using the `@Html.DropDownList` helper in ASP.NET MVC, you need to use the `@Html.ListBox` helper instead. The `DropDownList` helper doesn't support multiple selections, but the `ListBox` helper does.
+
+Here's how you can modify your code to enable multiple selections:
+
+### 1. **Controller: Prepare the Data**
+
+In your controller, you need to prepare the `SelectList` and pass it to the view via `ViewBag` or a model.
+
+```csharp
+public ActionResult YourAction()
+{
+    var empCodeList = new List<SelectListItem>
+    {
+        new SelectListItem { Value = "1", Text = "EmployeeCode1" },
+        new SelectListItem { Value = "2", Text = "EmployeeCode2" },
+        new SelectListItem { Value = "3", Text = "EmployeeCode3" },
+        new SelectListItem { Value = "4", Text = "EmployeeCode4" },
+    };
+
+    ViewBag.EmpCodeList = empCodeList;
+
+    return View();
+}
+```
+
+### 2. **View: Display the Multi-Select Dropdown**
+
+In your view, use the `@Html.ListBox` helper to enable multiple selections.
+
+```csharp
+@Html.ListBox("empCodeId", ViewBag.EmpCodeList as IEnumerable<SelectListItem>, new { @class = "form-control" })
+```
+
+### 3. **Handling Multiple Selections in Your Controller**
+
+When you submit the form, the selected values will be sent as an array. Your action method should accept this array to process the selected values.
+
+```csharp
+[HttpPost]
+public ActionResult YourAction(int[] empCodeId)
+{
+    if (empCodeId != null)
+    {
+        // Process the selected empCodeId values
+        foreach (var id in empCodeId)
+        {
+            // Do something with each selected id
+        }
+    }
+
+    // Return to the view or redirect as needed
+    return RedirectToAction("YourAction");
+}
+```
+
+### 4. **UI Representation**
+
+When rendered, the `ListBox` will allow users to select multiple items by holding the `Ctrl` key (Windows) or `Cmd` key (Mac) while clicking on the items, or by dragging the mouse over multiple items.
+
+### 5. **Styling the ListBox (Optional)**
+
+You can add some CSS to style the `ListBox` control to better fit your UI:
+
+```css
+.form-control {
+    width: 100%;
+    height: 150px; /* Adjust the height as needed */
+}
+```
+
+### **Summary**
+- Use `@Html.ListBox` instead of `@Html.DropDownList` to enable multiple selections.
+- Pass the list of items to the view using `ViewBag` or a strongly-typed model.
+- Handle the selected values in your controller by accepting an array of integers or strings, depending on your `Value` field.
+
+This will allow users to select multiple employees from the dropdown.
