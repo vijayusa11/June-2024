@@ -1,0 +1,98 @@
+To display all dropdown values from the `ExportColumnSelection` table in a multi-selection dropdown list on the UI, you can use the following approach in your ASP.NET Web Forms application.
+
+### 1. **ASP.NET Web Form Setup**
+
+In your `.aspx` file, create a `ListBox` control that will act as your multi-selection dropdown.
+
+```aspx
+<asp:ListBox ID="lstColumns" runat="server" SelectionMode="Multiple" CssClass="multiSelectDropdown">
+</asp:ListBox>
+```
+
+### 2. **Code-Behind Logic to Populate the Dropdown**
+
+In your code-behind (`.aspx.cs` file), write the logic to fetch all the values from the `ExportColumnSelection` table and populate the `ListBox` control.
+
+```csharp
+using System;
+using System.Data.SqlClient;
+using System.Web.UI.WebControls;
+
+public partial class YourPage : System.Web.UI.Page
+{
+    protected void Page_Load(object sender, EventArgs e)
+    {
+        if (!IsPostBack)
+        {
+            BindColumns();
+        }
+    }
+
+    private void BindColumns()
+    {
+        // Your connection string here
+        string connectionString = "your_connection_string_here";
+
+        // SQL query to fetch all columns from the ExportColumnSelection table
+        string query = "SELECT ColumnName FROM ExportColumnSelection";
+
+        using (SqlConnection con = new SqlConnection(connectionString))
+        {
+            SqlCommand cmd = new SqlCommand(query, con);
+            con.Open();
+            SqlDataReader reader = cmd.ExecuteReader();
+
+            // Bind the ListBox with data from the database
+            lstColumns.DataSource = reader;
+            lstColumns.DataTextField = "ColumnName"; // The text to display
+            lstColumns.DataValueField = "ColumnName"; // The value to store
+            lstColumns.DataBind();
+        }
+    }
+}
+```
+
+### 3. **Explanation of the Code:**
+
+- **`Page_Load` Method:** 
+  - This event is triggered every time the page loads.
+  - The `BindColumns` method is called only when the page is loaded for the first time (`!IsPostBack`), ensuring that the dropdown is populated only once.
+
+- **`BindColumns` Method:** 
+  - **Connection String:** Replace `"your_connection_string_here"` with your actual SQL Server connection string.
+  - **SQL Query:** The SQL query selects all `ColumnName` entries from the `ExportColumnSelection` table.
+  - **SqlDataReader:** The `SqlDataReader` retrieves the data, which is then bound to the `ListBox` control.
+  - **`DataTextField` and `DataValueField`:** Both are set to `ColumnName` so that the dropdown displays the `ColumnName` values.
+
+### 4. **UI Representation:**
+
+- When the page is loaded for the first time, the `ListBox` will display all column names from the `ExportColumnSelection` table.
+- Users can select multiple items from the dropdown.
+
+### 5. **Sample HTML Output:**
+
+After binding the `ListBox`, the HTML output will look something like this:
+
+```html
+<select id="lstColumns" multiple="multiple">
+    <option value="EmployeeCode">EmployeeCode</option>
+    <option value="FirstName">FirstName</option>
+    <option value="LastName">LastName</option>
+    <option value="Department">Department</option>
+    <option value="Designation">Designation</option>
+    <option value="Email">Email</option>
+</select>
+```
+
+### 6. **Customizing the ListBox:**
+
+You can further customize the `ListBox` control with CSS to style it as desired.
+
+```css
+.multiSelectDropdown {
+    width: 200px;
+    height: 150px;
+}
+```
+
+This code will display all dropdown values retrieved from the `ExportColumnSelection` table in the `ListBox`, enabling users to select one or more options as needed.
