@@ -1,0 +1,4 @@
+how to create a button for select all and deselect all
+
+@foreach (var item in ViewBag.EmpCodeList)
+{<label> @Html.CheckBox("empCodeIds", new { value = item.Value }) @item.Text </label><br />}
