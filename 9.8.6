@@ -1,0 +1,85 @@
+To create "Select All" and "Deselect All" buttons for your checkboxes, you can use JavaScript or jQuery to handle the selection and deselection of all checkboxes. Here's how you can do it:
+
+### 1. **View: Display the Checkboxes**
+
+Modify your `foreach` loop to generate the checkboxes with a common class or name attribute so that they can be easily selected using JavaScript/jQuery.
+
+```csharp
+@foreach (var item in ViewBag.EmpCodeList)
+{
+    <label>
+        @Html.CheckBox("empCodeIds", new { @class = "emp-checkbox", value = item.Value })
+        @item.Text
+    </label><br />
+}
+```
+
+### 2. **Add "Select All" and "Deselect All" Buttons**
+
+Add buttons for "Select All" and "Deselect All" in your view. These buttons will trigger JavaScript functions to select or deselect all checkboxes.
+
+```html
+<button type="button" id="selectAllBtn">Select All</button>
+<button type="button" id="deselectAllBtn">Deselect All</button>
+```
+
+### 3. **JavaScript/jQuery for Select All and Deselect All**
+
+You can use jQuery to easily select or deselect all checkboxes with the `emp-checkbox` class.
+
+```javascript
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript">
+    $(document).ready(function() {
+        // Select All
+        $('#selectAllBtn').click(function() {
+            $('.emp-checkbox').prop('checked', true);
+        });
+
+        // Deselect All
+        $('#deselectAllBtn').click(function() {
+            $('.emp-checkbox').prop('checked', false);
+        });
+    });
+</script>
+```
+
+### 4. **Final View Example**
+
+Here’s how your complete view code would look with the buttons and JavaScript:
+
+```html
+@foreach (var item in ViewBag.EmpCodeList)
+{
+    <label>
+        @Html.CheckBox("empCodeIds", new { @class = "emp-checkbox", value = item.Value })
+        @item.Text
+    </label><br />
+}
+
+<button type="button" id="selectAllBtn">Select All</button>
+<button type="button" id="deselectAllBtn">Deselect All</button>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript">
+    $(document).ready(function() {
+        // Select All
+        $('#selectAllBtn').click(function() {
+            $('.emp-checkbox').prop('checked', true);
+        });
+
+        // Deselect All
+        $('#deselectAllBtn').click(function() {
+            $('.emp-checkbox').prop('checked', false);
+        });
+    });
+</script>
+```
+
+### 5. **Explanation:**
+
+- **Buttons:** The "Select All" button sets the `checked` property of all checkboxes to `true`, and the "Deselect All" button sets it to `false`.
+- **Class Selection:** The `emp-checkbox` class is used to target all the relevant checkboxes.
+- **jQuery:** Handles the click events on the buttons to select or deselect all checkboxes.
+
+This setup will allow you to easily select or deselect all the employee checkboxes with a single click.
