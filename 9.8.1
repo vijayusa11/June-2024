@@ -1,0 +1,19 @@
+below is my table structure.
+i want to create a multiselection dropdown in which we are going to select multiple of dropdown values and it will pass into 
+ExportColumnSelection table that we can use in another SP so create a multiselection dropdown in asp.net cramework 4.7 with c#
+in multiselect dropdown i want to insert values manually.
+
+CREATE TABLE dbo.ExportColumnSelection (
+    Id INT IDENTITY(1,1) PRIMARY KEY,
+    ColumnName NVARCHAR(100) NOT NULL,
+    IsSelected BIT NOT NULL DEFAULT 0
+);
+
+INSERT INTO dbo.ExportColumnSelection (ColumnName, IsSelected)
+VALUES
+    ('EmployeeCode', 1),
+    ('FirstName', 1),
+    ('LastName', 1),
+    ('Department', 1),
+    ('Designation', 1),    
+    ('Email', 0);
