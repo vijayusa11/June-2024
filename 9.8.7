@@ -1,0 +1,30 @@
+here in checkbox want to write method in which i can select columnn name which is select 
+ 
+ <label>
+     @Html.CheckBox("empCodeIds", new { @class = "emp-checkbox", value = item.Value })
+     @item.Text
+ </label>
+ 
+ 
+for reference earlier method created for to select employee from check box
+
+    function OnSelectEmployee(selectedEmployeeId, isChecked) {
+        debugger
+
+        if (isChecked) {
+            // Add the selected employee ID to the array
+            empIds.push(selectedEmployeeId);
+        } else {
+            // Remove the unselected employee ID from the array
+            empIds = empIds.filter(id => id !== selectedEmployeeId);
+        }
+
+        // Update the hidden input field with the joined IDs
+        $("#hdn_selectedEmployees").val(empIds.join(","));
+        $("#empCodeIds").val(empIds.join(","));
+    }
+
+strreturn = strreturn + " <td><input type=\"checkbox\" onchange=\"OnSelectEmployee(" + b.EmployeeId + ", this.checked)\" class=\"chkdownloaddoc\" id=\"" + b.EmployeeId + "\" /></td>" + Environment.NewLine;
+                        	
+Now in current scenario there are a list of columnnames user select any of them can read by method there id and values as well							
+							
