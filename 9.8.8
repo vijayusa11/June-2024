@@ -1,0 +1,110 @@
+To implement a similar functionality for selecting column names from checkboxes, you can modify your existing method to handle the column names instead of employee IDs. Below is a step-by-step guide to achieve this:
+
+### 1. **Modify the View to Include the `OnSelectColumn` JavaScript Method**
+
+You will need to add an `onchange` event handler to your checkboxes that calls a JavaScript function whenever a checkbox is selected or deselected.
+
+```csharp
+@foreach (var item in ViewBag.EmpCodeList)
+{
+    <label>
+        @Html.CheckBox("columnNames", new { @class = "emp-checkbox", value = item.Value, onchange = $"OnSelectColumn('{item.Value}', this.checked)" })
+        @item.Text
+    </label><br />
+}
+```
+
+### 2. **JavaScript Method to Handle Checkbox Selection**
+
+Here’s the JavaScript function that will handle the selection and deselection of column names. It is similar to your `OnSelectEmployee` method but adapted for column names.
+
+```javascript
+<script type="text/javascript">
+    var selectedColumns = [];
+
+    function OnSelectColumn(columnName, isChecked) {
+        if (isChecked) {
+            // Add the selected column name to the array
+            selectedColumns.push(columnName);
+        } else {
+            // Remove the unselected column name from the array
+            selectedColumns = selectedColumns.filter(name => name !== columnName);
+        }
+
+        // Update the hidden input field with the joined column names (if needed)
+        $("#hdn_selectedColumns").val(selectedColumns.join(","));
+    }
+</script>
+```
+
+### 3. **Create a Hidden Field to Store the Selected Column Names (Optional)**
+
+If you need to pass the selected column names to your server-side code, you can store them in a hidden field that gets updated each time a checkbox is selected or deselected.
+
+```html
+<input type="hidden" id="hdn_selectedColumns" name="SelectedColumns" />
+```
+
+### 4. **Putting It All Together**
+
+Here is how your view might look with everything combined:
+
+```html
+@foreach (var item in ViewBag.EmpCodeList)
+{
+    <label>
+        @Html.CheckBox("columnNames", new { @class = "emp-checkbox", value = item.Value, onchange = $"OnSelectColumn('{item.Value}', this.checked)" })
+        @item.Text
+    </label><br />
+}
+
+<button type="button" id="selectAllBtn">Select All</button>
+<button type="button" id="deselectAllBtn">Deselect All</button>
+
+<input type="hidden" id="hdn_selectedColumns" name="SelectedColumns" />
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript">
+    var selectedColumns = [];
+
+    function OnSelectColumn(columnName, isChecked) {
+        if (isChecked) {
+            // Add the selected column name to the array
+            selectedColumns.push(columnName);
+        } else {
+            // Remove the unselected column name from the array
+            selectedColumns = selectedColumns.filter(name => name !== columnName);
+        }
+
+        // Update the hidden input field with the joined column names (if needed)
+        $("#hdn_selectedColumns").val(selectedColumns.join(","));
+    }
+
+    $(document).ready(function() {
+        // Select All
+        $('#selectAllBtn').click(function() {
+            $('.emp-checkbox').prop('checked', true).trigger('change');
+        });
+
+        // Deselect All
+        $('#deselectAllBtn').click(function() {
+            $('.emp-checkbox').prop('checked', false).trigger('change');
+        });
+    });
+</script>
+```
+
+### 5. **Explanation:**
+
+- **`OnSelectColumn` Function:** 
+  - Handles the selection and deselection of column names.
+  - Adds the selected column name to the `selectedColumns` array or removes it if unchecked.
+  - Updates a hidden input field with the selected column names, joined by commas, for easy submission.
+
+- **`selectAllBtn` and `deselectAllBtn`:** 
+  - These buttons trigger the selection or deselection of all checkboxes. They use jQuery to update the checkbox states and then trigger the `change` event to ensure the `OnSelectColumn` method runs.
+
+- **Hidden Input Field:** 
+  - Stores the selected column names in a format that can be easily passed to the server when the form is submitted.
+
+This setup provides a flexible way to manage the selection of columns, whether for further processing or passing to the server.
