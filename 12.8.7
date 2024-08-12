@@ -1,0 +1,10 @@
+Incorrect syntax near the keyword 'FROM'.
+SELECT DISTINCT E. FROM Employees AS E 	LEFT JOIN EmployeeGroups AS EG ON EG.GroupId = E.EmployeeGroupId  	LEFT JOIN Employees AS LI ON E.LineManagerId = LI.EmployeeId 
+								LEFT JOIN PDRFilledDetail PFD ON PFD.EmployeeId = E.EmployeeId
+								LEFT JOIN PDRQuestion PQ ON PQ.QuestionId = PFD.QuestionId 
+								LEFT JOIN PDRQuestionOption PQO ON PQO.QuestionId = PQ.QuestionId 	
+								LEFT JOIN #tempEmpTotalPDRScore C ON C.EmployeeId = E.EmployeeId 	WHERE (E.IsDelete IS NULL OR E.IsDelete = 0) AND E.STATUSID <> 2 	and E.EmployeeId in  (SELECT splitdata FROM fnSplitString('1,11','COMMA')) 
+
+its getting error because i think its taking @PrefixedColumnNames value as E.
+so write code to handle exception
+now getting parameters values this - exec [dbo].[spGetEmployeeListWithBankExport] '','','','','','','','','','',null,'1,11','1','',null
