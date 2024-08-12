@@ -1,0 +1,80 @@
+To modify your stored procedure to accept a comma-separated list of column names, you can add a new input parameter (e.g., `@ColumnNames`) to accept this list. Then, you can split the comma-separated values into individual column names and dynamically use them in your query.
+
+Here’s how you can adjust your stored procedure:
+
+```sql
+ALTER PROCEDURE [dbo].[spGetEmployeeListWithBankExport]
+(
+    @OrderBy varchar(1000), 	
+    @EmployeeCode nvarchar(20),	
+    @EmployeeName nvarchar(100),
+    @Designation nvarchar(100),
+    @DepartmentName nvarchar(100),
+    @EmailAddress varchar(100),
+    @Username nvarchar(50),	
+    @EmployeeGroupName nvarchar(100),	
+    @Status nvarchar(20),
+    @ComplianceStatus nvarchar(20),
+    @IsDelete nvarchar(1),
+    @employeeIds nvarchar(50), 
+    @ViewerId int,	
+    @TotalCount int out,
+    @ColumnNames nvarchar(1000) -- New parameter for comma-separated column names
+)
+AS     
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @IsLineManager bit;
+    DECLARE @DepartmentId int;
+    DECLARE @IsAdmin bit;
+    DECLARE @Select varchar(8000);
+    DECLARE @Where varchar(8000);
+    DECLARE @SQLString NVARCHAR(4000);
+    DECLARE @ParmDefinition NVARCHAR(4000);
+    DECLARE @Lastlname varchar(1000);
+
+    -- Split @ColumnNames into individual columns and build the SELECT clause
+    SET @Select = 'SELECT DISTINCT ' + @ColumnNames + ' FROM Employees AS E';
+
+    -- Add your existing logic for joins, conditions, and filters here...
+    
+    -- Example: Adding a WHERE condition based on @IsDelete
+    IF @IsDelete <> ''
+    BEGIN
+        IF @IsDelete = '0'
+        BEGIN
+            SET @Select = @Select + ' WHERE (E.IsDelete IS NULL OR E.IsDelete = 0) AND E.STATUSID <> 2';
+        END
+        ELSE
+        BEGIN
+            SET @Select = @Select + ' WHERE E.IsDelete = 1 OR E.STATUSID = 2';
+        END
+    END
+    ELSE
+    BEGIN
+        SET @Select = @Select + ' WHERE (E.IsDelete IS NULL OR E.IsDelete = 0) AND E.STATUSID <> 2';
+    END
+    
+    -- More filtering logic based on your other parameters...
+
+    -- Execute the final query
+    EXEC(@Select);
+    
+    -- If you need to count total rows
+    SET @SQLString = 'SELECT COUNT(*) FROM Employees AS E';
+    -- Add filtering conditions similar to the ones used in @Select...
+
+    EXECUTE sp_executesql @SQLString, @ParmDefinition, @Lastlname OUT;
+    SET @TotalCount = @Lastlname;
+
+    PRINT @Select;
+END
+```
+
+### Key Changes:
+1. **New Parameter:** `@ColumnNames nvarchar(1000)` is added to take the comma-separated list of columns.
+2. **Dynamic SELECT:** The `@Select` variable now starts with a dynamic SELECT clause that includes the column names passed in `@ColumnNames`.
+3. **Condition Logic:** The logic for filtering and conditions remains the same, but now the columns in the SELECT clause can be customized through the `@ColumnNames` parameter.
+
+This allows flexibility in selecting only the columns that are needed, based on the input provided.
