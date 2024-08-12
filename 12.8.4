@@ -1,0 +1,8 @@
+is there any mistake with opening and closing brackets for below script
+
+;WITH CTE AS (SELECT EmployeeId,SUM(CAST(Split.c.value('.', 'VARCHAR(100)') AS INT)) AS TotalScore FROM(
+	SELECT EmployeeId,CAST ('<M>' + REPLACE(Score, ',', '</M><M>') + '</M>' AS XML) AS Score FROM(
+	SELECT FilledId,EmployeeId,QuestionId,Type,REPLACE(Score,',-5','') AS Score,FilledBy,CreatedDate FROM
+	(select FilledId,EmployeeId,QuestionId,REPLACE(Type,'|',',') AS Type, REPLACE(Score,'|',',') AS Score,FilledBy,CreatedDate from PDRFilledDetail) A)B
+	)AS C CROSS APPLY Score.nodes ('/M') AS Split(C)
+	GROUP BY EmployeeId)
