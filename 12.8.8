@@ -1,0 +1,61 @@
+To address the issue where the `@ColumnNames` variable might be empty or incorrectly formatted, you can add a check to ensure that `@ColumnNames` contains valid data before attempting to build your `SELECT` statement. Here’s how you can modify your procedure:
+
+```sql
+ALTER PROCEDURE [dbo].[spGetEmployeeListWithBankExport]
+(
+    @OrderBy varchar(1000), 	
+    @EmployeeCode nvarchar(20),	
+    @EmployeeName nvarchar(100),
+    @Designation nvarchar(100),
+    @DepartmentName nvarchar(100),
+    @EmailAddress varchar(100),
+    @Username nvarchar(50),	
+    @EmployeeGroupName nvarchar(100),	
+    @Status nvarchar(20),
+    @ComplianceStatus nvarchar(20),
+    @IsDelete nvarchar(1),
+    @employeeIds nvarchar(50), 
+    @ViewerId int,	
+    @ColumnNames nvarchar(1000),
+    @TotalCount int out	
+)
+AS     
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @IsAdmin bit;
+    DECLARE @IsLineManager bit;
+    DECLARE @Select varchar(8000);
+    DECLARE @PrefixedColumnNames nvarchar(4000) = '';
+    DECLARE @Where varchar(8000);
+
+    -- Add table prefix E. to each column name
+    IF @ColumnNames IS NOT NULL AND LEN(@ColumnNames) > 0
+    BEGIN
+        SET @PrefixedColumnNames = 'E.' + REPLACE(@ColumnNames, ',', ', E.');
+    END
+    ELSE
+    BEGIN
+        -- Handle the case where @ColumnNames is empty or invalid
+        SET @PrefixedColumnNames = 'E.EmployeeCode'; -- Default column
+    END
+
+    -- Build the SELECT statement
+    SET @Select = 'SELECT DISTINCT ' + @PrefixedColumnNames + ' FROM Employees AS E';
+
+    -- (Rest of your query here, as before)
+    -- Add your JOINs and WHERE clauses, using the @Select variable
+
+    EXEC(@Select);
+    PRINT @Select;
+
+    -- (Other parts of your procedure)
+END
+```
+
+### Explanation:
+- **@PrefixedColumnNames**: This variable holds the formatted column names with the `E.` prefix.
+- **Check and Default**: If `@ColumnNames` is empty or `NULL`, it defaults to a safe column (`E.EmployeeCode`) to avoid the syntax error.
+- **REPLACE Function**: This ensures that each column name in `@ColumnNames` is prefixed with `E.`.
+
+This should help you avoid the error where `@ColumnNames` is empty and leads to the incorrect SQL statement being generated.
