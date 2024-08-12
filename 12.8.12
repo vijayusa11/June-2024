@@ -1,0 +1,167 @@
+Given that the remaining original input parameters need to be preserved, the stored procedure will need to handle both the dynamic parameters and the existing ones. Here's how you can incorporate the dynamic query generation while still using the original parameters:
+
+### Updated Stored Procedure
+
+```sql
+ALTER PROCEDURE [dbo].[spGetEmployeeListWithBankExport]
+(
+    @DynamicReportId INT,
+    @WhereCondition NVARCHAR(MAX),
+    @OrderBy VARCHAR(1000), 	
+    @EmployeeCode NVARCHAR(20),	
+    @EmployeeName NVARCHAR(100),
+    @Designation NVARCHAR(100),
+    @DepartmentName NVARCHAR(100),
+    @EmailAddress VARCHAR(100),
+    @Username NVARCHAR(50),	
+    @EmployeeGroupName NVARCHAR(100),	
+    @Status NVARCHAR(20),
+    @ComplianceStatus NVARCHAR(20),
+    @IsDelete NVARCHAR(1),
+    @employeeIds NVARCHAR(50),
+    @ViewerId INT,	
+    @ColumnNames NVARCHAR(1000),
+    @TotalCount INT OUT	
+)
+AS     
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @IsAdmin BIT;
+    DECLARE @IsLineManager BIT;
+    DECLARE @SQL NVARCHAR(MAX);
+    DECLARE @Select NVARCHAR(MAX);
+    DECLARE @PrefixedColumnNames VARCHAR(8000);
+
+    -- Fetch column names if dynamic report ID is provided
+    IF @DynamicReportId IS NOT NULL
+    BEGIN
+        SELECT @ColumnNames = ColumnNames FROM ReportConfigurations WHERE DynamicReportId = @DynamicReportId;
+    END
+
+    -- Add table prefix 'E.' to each column name
+    IF @ColumnNames IS NOT NULL AND LEN(@ColumnNames) > 0
+    BEGIN
+        SET @PrefixedColumnNames = 'E.' + REPLACE(@ColumnNames, ',', ', E.');
+    END
+    ELSE
+    BEGIN
+        -- Handle the case where @ColumnNames is empty or invalid
+        SET @PrefixedColumnNames = 'E.EmployeeCode'; -- Default column
+    END
+    
+    -- Start building the SELECT statement
+    SET @Select = 'SELECT DISTINCT ' + @PrefixedColumnNames + ' FROM Employees AS E '
+               + 'LEFT JOIN EmployeeGroups AS EG ON EG.GroupId = E.EmployeeGroupId '
+               + 'LEFT JOIN Employees AS LI ON E.LineManagerId = LI.EmployeeId '
+               + 'LEFT JOIN PDRFilledDetail PFD ON PFD.EmployeeId = E.EmployeeId '
+               + 'LEFT JOIN PDRQuestion PQ ON PQ.QuestionId = PFD.QuestionId '
+               + 'LEFT JOIN PDRQuestionOption PQO ON PQO.QuestionId = PQ.QuestionId '
+               + 'LEFT JOIN #tempEmpTotalPDRScore C ON C.EmployeeId = E.EmployeeId ';
+
+    -- Apply dynamic and original WHERE conditions
+    SET @Select = @Select + ' WHERE 1=1 ';
+
+    -- Apply @WhereCondition if provided
+    IF @WhereCondition IS NOT NULL AND LEN(@WhereCondition) > 0
+    BEGIN
+        SET @Select = @Select + ' AND ' + @WhereCondition;
+    END
+
+    -- Apply original input conditions
+    IF @IsDelete <> ''
+    BEGIN
+        IF @IsDelete = '0'
+        BEGIN
+            SET @Select = @Select + ' AND (E.IsDelete IS NULL OR E.IsDelete = 0) AND E.STATUSID <> 2';
+        END
+        ELSE
+        BEGIN
+            SET @Select = @Select + ' AND E.IsDelete = 1 OR E.STATUSID = 2';
+        END
+    END
+
+    IF @EmployeeCode <> ''
+    BEGIN
+        SET @Select = @Select + ' AND E.EmployeeCode LIKE ''%' + @EmployeeCode + '%'' ';
+    END
+    
+    IF @EmployeeName <> ''
+    BEGIN
+        SET @Select = @Select + ' AND (RTRIM(LTRIM(E.FirstName)) + '' '' + RTRIM(LTRIM(E.LastName)) LIKE ''%' + @EmployeeName + '%'')';
+    END
+    
+    IF @Designation <> ''
+    BEGIN
+        SET @Select = @Select + ' AND E.Designation LIKE ''%' + @Designation + '%'' ';
+    END
+
+    IF @DepartmentName <> ''
+    BEGIN
+        SET @Select = @Select + ' AND E.DepartmentName LIKE ''%' + @DepartmentName + '%'' ';
+    END
+    
+    IF @EmailAddress <> ''
+    BEGIN
+        SET @Select = @Select + ' AND E.EmailAddress LIKE ''%' + @EmailAddress + '%'' ';
+    END
+
+    IF @Username <> ''
+    BEGIN			
+        SET @Select = @Select + ' AND E.Username LIKE ''%' + @Username + '%'' ';
+    END
+
+    IF @EmployeeGroupName <> ''
+    BEGIN
+        SET @Select = @Select + ' AND EG.GroupName LIKE ''%' + @EmployeeGroupName + '%'' ';
+    END
+
+    IF @Status <> ''
+    BEGIN			
+        SET @Select = @Select + ' AND E.StatusName LIKE ''%' + @Status + '%'' ';
+    END
+
+    IF @ComplianceStatus <> ''
+    BEGIN			
+        SET @Select = @Select + ' AND (CASE WHEN dbo.fncGetEmployeeComplianceStatus(E.EmployeeId, '''') = 1 THEN ''Compliant'' ' 
+                    + ' WHEN dbo.fncGetEmployeeComplianceStatus(E.EmployeeId, '''') = 2 THEN ''Non-Compliant'' ' 
+                    + ' WHEN dbo.fncGetEmployeeComplianceStatus(E.EmployeeId, '''') = 3 THEN ''About to Expire'' ' 
+                    + ' WHEN dbo.fncGetEmployeeComplianceStatus(E.EmployeeId, '''') = 4 THEN ''CFMM'' END) LIKE ''%' + @ComplianceStatus + '%'' ';
+    END
+
+    IF @employeeIds <> ''
+    BEGIN
+        SET @Select = @Select + ' AND E.EmployeeId IN (SELECT splitdata FROM fnSplitString(''' + @employeeIds + ''',''COMMA'')) ';
+    END
+    
+    -- Apply ViewerId-specific conditions (admin, line manager)
+    IF @IsAdmin <> 1
+    BEGIN
+        IF @IsLineManager = 1
+        BEGIN
+            SET @Select = @Select + ' AND E.LineManagerId = ' + CONVERT(VARCHAR, @ViewerId);
+        END
+    END
+    
+    -- Count total records
+    SET @SQL = 'SELECT @TotalCountOUT = COUNT(*) FROM (' + @Select + ') AS CountQuery';
+    EXEC sp_executesql @SQL, N'@TotalCountOUT INT OUTPUT', @TotalCountOUT=@TotalCount OUTPUT;
+
+    -- Execute the final SQL
+    EXEC(@Select);
+
+    -- Drop temp table if exists
+    IF OBJECT_ID('tempdb..#tempEmpTotalPDRScore') IS NOT NULL
+        DROP TABLE #tempEmpTotalPDRScore;
+END
+```
+
+### Key Points:
+
+1. **Dynamic Report Integration:** The stored procedure now considers the dynamic report ID (`@DynamicReportId`) to fetch dynamic column names from a hypothetical table (`ReportConfigurations`).
+
+2. **Dynamic and Original Conditions:** The procedure dynamically constructs the `SELECT` query by integrating both the dynamic `@WhereCondition` and the original input parameters.
+
+3. **SQL Execution:** The SQL is dynamically constructed and executed, and the total count is returned via the `@TotalCount` output parameter.
+
+This approach preserves the original input parameters while allowing dynamic customization based on the dynamic report ID and custom where conditions. Make sure the dynamic SQL is tested thoroughly to prevent SQL injection and ensure accurate results.
