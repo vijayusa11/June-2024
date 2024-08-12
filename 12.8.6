@@ -1,0 +1,50 @@
+To prepend `E.` in front of each comma-separated value in `@ColumnNames`, you can split the string, add the `E.` prefix to each value, and then concatenate them back together. Here's how you can do this within your stored procedure:
+
+### Updated Code:
+
+```sql
+-- Split @ColumnNames by comma, add 'E.' to each column, and join them back together
+DECLARE @PrefixedColumnNames VARCHAR(8000);
+
+-- Replacing comma with comma+space for better readability
+SET @PrefixedColumnNames = 'E.' + REPLACE(@ColumnNames, ',', ', E.');
+
+-- Now @PrefixedColumnNames contains the list of columns prefixed with 'E.'
+
+-- Use @PrefixedColumnNames in your dynamic SELECT statement
+SET @Select = 'SELECT DISTINCT ' + @PrefixedColumnNames + ' FROM Employees AS E';
+
+-- Add your JOINs, WHERE clauses, etc.
+set @Select = @Select + ' LEFT JOIN EmployeeGroups AS EG ON EG.GroupId = E.EmployeeGroupId '
+set @Select = @Select + ' LEFT JOIN Employees AS LI ON E.LineManagerId = LI.EmployeeId 
+                        LEFT JOIN PDRFilledDetail PFD ON PFD.EmployeeId = E.EmployeeId
+                        LEFT JOIN PDRQuestion PQ ON PQ.QuestionId = PFD.QuestionId 
+                        LEFT JOIN PDRQuestionOption PQO ON PQO.QuestionId = PQ.QuestionId 	
+                        LEFT JOIN #tempEmpTotalPDRScore C ON C.EmployeeId = E.EmployeeId';
+
+-- Add your remaining logic here...
+
+-- Execute the query
+exec(@Select);
+```
+
+### Explanation:
+
+1. **String Manipulation:**
+   - `REPLACE(@ColumnNames, ',', ', E.')` splits the `@ColumnNames` by commas and adds `E.` before each column name.
+
+2. **Building the SELECT Statement:**
+   - The dynamically created `@Select` statement now uses `@PrefixedColumnNames`, ensuring that each column name has `E.` prefixed.
+
+3. **Executing the Query:**
+   - The final query is executed using `exec(@Select)`.
+
+### Testing Example:
+
+If `@ColumnNames` is `'EmployeeCode,LoginName,DepartmentName'`, the `@PrefixedColumnNames` will become `'E.EmployeeCode, E.LoginName, E.DepartmentName'`, and the final `@Select` will be:
+
+```sql
+SELECT DISTINCT E.EmployeeCode, E.LoginName, E.DepartmentName FROM Employees AS E
+```
+
+This approach ensures that the correct column names are referenced in your SQL query.
