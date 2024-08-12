@@ -1,0 +1,95 @@
+To update the stored procedure (`spGetEmployeeListWithBankExport`) to handle input parameters dynamically via `paramName1` and `paramName2`, you'll need to adjust the procedure to interpret these inputs as a part of the query. Below is how you can modify the procedure to achieve this:
+
+### Updated Stored Procedure
+
+```sql
+ALTER PROCEDURE [dbo].[spGetEmployeeListWithBankExport]
+(
+    @DynamicReportId INT,
+    @WhereCondition NVARCHAR(MAX),
+    @TotalCount INT OUT
+)
+AS     
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @IsAdmin BIT;
+    DECLARE @IsLineManager BIT;
+    DECLARE @SQL NVARCHAR(MAX);
+    DECLARE @Select NVARCHAR(MAX);
+    DECLARE @PrefixedColumnNames VARCHAR(8000);
+    
+    -- Assuming your dynamic report contains information like columns to select and other configurations.
+    -- Fetch column names and any other configurations based on @DynamicReportId.
+    DECLARE @ColumnNames NVARCHAR(1000);
+    
+    -- For the purpose of this example, assume you fetch @ColumnNames from a table using @DynamicReportId.
+    SELECT @ColumnNames = ColumnNames FROM ReportConfigurations WHERE DynamicReportId = @DynamicReportId;
+    
+    -- Add table prefix 'E.' to each column name
+    IF @ColumnNames IS NOT NULL AND LEN(@ColumnNames) > 0
+    BEGIN
+        SET @PrefixedColumnNames = 'E.' + REPLACE(@ColumnNames, ',', ', E.');
+    END
+    ELSE
+    BEGIN
+        -- Handle the case where @ColumnNames is empty or invalid
+        SET @PrefixedColumnNames = 'E.EmployeeCode'; -- Default column
+    END
+    
+    -- Start building the SELECT statement
+    SET @Select = 'SELECT DISTINCT ' + @PrefixedColumnNames + ' FROM Employees AS E '
+               + 'LEFT JOIN EmployeeGroups AS EG ON EG.GroupId = E.EmployeeGroupId '
+               + 'LEFT JOIN Employees AS LI ON E.LineManagerId = LI.EmployeeId '
+               + 'LEFT JOIN PDRFilledDetail PFD ON PFD.EmployeeId = E.EmployeeId '
+               + 'LEFT JOIN PDRQuestion PQ ON PQ.QuestionId = PFD.QuestionId '
+               + 'LEFT JOIN PDRQuestionOption PQO ON PQO.QuestionId = PQ.QuestionId '
+               + 'LEFT JOIN #tempEmpTotalPDRScore C ON C.EmployeeId = E.EmployeeId ';
+
+    -- Apply the WHERE condition dynamically
+    IF @WhereCondition IS NOT NULL AND LEN(@WhereCondition) > 0
+    BEGIN
+        SET @Select = @Select + ' WHERE ' + @WhereCondition;
+    END
+
+    -- Further WHERE conditions (Admin/LineManager)
+    IF @IsAdmin IS NOT NULL AND @IsAdmin = 0
+    BEGIN
+        IF @IsLineManager = 1
+        BEGIN
+            SET @Select = @Select + ' AND E.LineManagerId=' + CONVERT(VARCHAR, @ViewerId);
+        END
+    END
+
+    -- Execute the final dynamic SQL
+    EXEC(@Select);
+    
+    -- Count the total records
+    SET @SQL = 'SELECT @TotalCountOUT = COUNT(*) FROM (' + @Select + ') AS CountQuery';
+    
+    EXEC sp_executesql @SQL, N'@TotalCountOUT INT OUTPUT', @TotalCountOUT=@TotalCount OUTPUT;
+
+    -- Drop temp table if exists
+    IF OBJECT_ID('tempdb..#tempEmpTotalPDRScore') IS NOT NULL
+        DROP TABLE #tempEmpTotalPDRScore;
+END
+```
+
+### Changes and Explanation:
+
+1. **Parameters:**
+   - The stored procedure now accepts `@DynamicReportId` and `@WhereCondition` as parameters, representing the dynamic report ID and the where clause, respectively.
+
+2. **Fetching Dynamic Columns:**
+   - It is assumed that there’s a configuration table (`ReportConfigurations`) where the `@ColumnNames` are stored against the `@DynamicReportId`. This might need to be adjusted based on your actual table structure.
+
+3. **Dynamic SQL Construction:**
+   - The SQL query (`@Select`) is dynamically built using the column names retrieved based on `@DynamicReportId` and the `@WhereCondition`.
+
+4. **Counting Records:**
+   - The total record count is calculated using the dynamic SQL query and returned via the `@TotalCount` output parameter.
+
+5. **SQL Execution:**
+   - The final dynamically generated SQL query is executed using `EXEC(@Select)`.
+
+Make sure you test the procedure thoroughly in your environment, as dynamic SQL introduces flexibility but also requires careful validation to avoid SQL injection and ensure correct query construction.
